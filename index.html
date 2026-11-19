@@ -249,6 +249,11 @@
   .small{line-height:1.6}
   #bSim{grid-column:1/-1}
   @media (max-width:360px){#top .pill{font-size:13px}.walkBtn{font-size:18px}}
+  .perks{margin:2px 0 10px;display:flex;flex-direction:column;gap:5px}
+  .perks .pk{font-size:13px;line-height:1.45;padding:6px 10px;border-radius:10px;background:#F4F0EE;color:#9A8C86}
+  .perks .pk b{margin-right:6px}
+  .perks .pk.on{background:#E3F4E3;color:#3f7a3f}
+  #levelUp{z-index:1100}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -333,6 +338,12 @@
     <button class="btn" id="sheetClose">關閉</button>
   </div>
 </div>
+<div class="overlay hidden" id="levelUp"><div class="card">
+  <img id="luImg" alt="" style="width:120px;height:120px;object-fit:contain;display:block;margin:0 auto">
+  <h1 id="luTitle" style="font-size:28px"></h1>
+  <ul id="luBody" style="padding-left:20px;line-height:1.7;font-size:16px"></ul>
+  <button class="btn" id="luOk">好耶！</button>
+</div></div>
 <div class="overlay hidden" id="summary"><div class="card">
   <h1>我們回來啦！</h1>
   <img id="sumImg" alt="這次散步的紀錄">
@@ -355,7 +366,7 @@
       <li>每天走 <b>3000 步</b>就達成目標，連續幾天會累積；每 <b>500 步</b>我拿一枚獎章，走過的路會開花</li>
       <li>寶物只藏在附近<b>真正的公共場所和景點</b>（公園、寺廟、博物館、車站…），要走到那裡才撿得到</li>
       <li>不同地方藏不同東西：寺廟多水果、市場多小吃、公園多戶外玩具、博物館多室內玩具；<b>集滿一套</b>有大獎勵</li>
-      <li>撿到的東西放進背包，拿來<b>餵我、陪我玩</b>，我會升級；我吃飽玩開心的時候，撿寶物分數 <b>×1.5</b></li>
+      <li>撿到的東西放進背包，拿來<b>餵我、陪我玩</b>，我會升級（有分數獎勵和新特權）；我吃飽玩開心的時候，撿寶物分數 <b>×1.5</b></li>
       <li>分數可以買<b>帽子和配件</b>給我戴；同一個地方撿完，隔天才會再有寶物</li>
       <li>「模擬走路」只是在家陪我試玩，不會記進你的紀錄</li>
     </ul></details>
@@ -857,7 +868,9 @@ function chatReply(k){
    case 'pet': {
      S.pet=(S.pet&&S.pet.key===S.dayKey)?S.pet:{key:S.dayKey,n:0};
      if(S.pet.n>=5) return pickL(TK.petLim);
-     S.pet.n++; S.mood=Math.min(100,S.mood+2); updateHud(); save();
+     S.pet.n++; S.mood=Math.min(100,S.mood+2);
+     if(hasPerk(10)&&S.pet.n===1){ addScore(50); toast('今天第一次摸頭，送你 50 分！'); }
+     updateHud(); save();
      return pickL(TK.pet)+(name&&Math.random()<.4?'（戴著'+name+'被摸頭，好隆重）':'');
    }
    case 'how': {
@@ -949,31 +962,48 @@ function achHtml(){
       return '<div class="achr'+(ok?' ok':'')+'"><div class="aic">'+ui('medal',30,ok?'#f4a100':'#c9c2bd')+'</div><div class="anm"><b>'+a.n+'</b><small>'+a.d+'</small>'+(ok?'':'<div class="qb"><i style="width:'+(v/a.need*100)+'%"></i></div><small>'+fmt(a,v)+' / '+fmt(a,a.need)+'</small>')+'</div><div class="apt">'+(ok?'已達成':'+'+a.pts+' 分')+'</div></div>';
     }).join('');
 }
+const PERKS=[
+ {lv:3,t:'撿寶物的範圍變大（60 → 80 公尺），不用走那麼近我就能撿到'},
+ {lv:5,t:'我的肚子和心情掉得比較慢（少掉 25%）'},
+ {lv:8,t:'吃飽玩開心的時候，撿寶物分數加成變成 ×1.7'},
+ {lv:10,t:'每天第一次摸我的頭，送你 50 分'}
+];
+const hasPerk=l=>(S.lvl||1)>=l;
+const treRadius=()=>hasPerk(3)?80:60, mulVal=()=>hasPerk(8)?1.7:1.5, decayK=()=>hasPerk(5)?.75:1;
 function bonusOn(){ return S.hunger>=40&&S.mood>=40; }
 function addScore(n){ S.score=(S.score||0)+n; S.earned=(S.earned||0)+n; if(sess) sess.pts+=n; }
 function expNeed(l){ return 40+30*(l-1); }
 function addExp(n){
-  S.exp=(S.exp||0)+n; let up=0;
-  while(S.exp>=expNeed(S.lvl||1)){ S.exp-=expNeed(S.lvl); S.lvl++; up++; }
-  if(up) say(pickL(TK.level),true);
-  if(up){ setTimeout(()=>toast('我升到 Lv.'+S.lvl+' 了！'+(ACCS.some(a=>a.lv===S.lvl)?'商店有新的配件可以看喔':'')),1800); vibrate([40,40,40]); }
+  S.exp=(S.exp||0)+n; let up=0, pts=0; const from=S.lvl||1;
+  while(S.exp>=expNeed(S.lvl||1)){ S.exp-=expNeed(S.lvl); S.lvl++; up++; pts+=30*S.lvl; }
+  if(up){
+    addScore(pts); say(pickL(TK.level),true); vibrate([40,40,40]);
+    const lines=['升級獎勵：+'+pts+' 分'];
+    PERKS.filter(p=>p.lv>from&&p.lv<=S.lvl).forEach(p=>lines.push('新特權：'+p.t));
+    ACCS.filter(a=>a.lv>from&&a.lv<=S.lvl).forEach(a=>lines.push('商店解鎖：'+a.n));
+    setTimeout(()=>showLevelUp(S.lvl,lines),1800);
+  }
+}
+function showLevelUp(lv,lines){
+  $('luTitle').textContent='我升到 Lv.'+lv+' 了！'; $('luBody').innerHTML=lines.map(l=>'<li>'+esc(l)+'</li>').join('');
+  $('luImg').src=S.skin||POSES.cape; $('levelUp').classList.remove('hidden'); updateHud();
 }
 function checkTreasures(){
   if(!walking) return;
   for(let i=treasures.length-1;i>=0;i--){
     const t=treasures[i];
-    if(hav(real,t)>TRE_RADIUS) continue;
+    if(hav(real,t)>treRadius()) continue;
     t.mk.remove(); treasures.splice(i,1);
     S.visited=S.visited||{}; S.seen=S.seen||{}; S.found=S.found||{}; S.items=S.items||{}; S.setDone=S.setDone||{};
     S.visited[t.poi.id]=Date.now();
     const first=!S.seen[t.poi.id]; let pts=t.pts;
-    const mul=bonusOn()?1.5:1; pts=Math.round(pts*mul);
+    const mul=bonusOn()?mulVal():1; pts=Math.round(pts*mul);
     if(first){ S.seen[t.poi.id]=t.poi.name; pts+=20; }
     S.recent=(S.recent||[]).filter(n=>n!==t.poi.name); S.recent.unshift(t.poi.name); S.recent=S.recent.slice(0,8);
     addScore(pts); S.coll++; S.items[t.tr.id]=(S.items[t.tr.id]||0)+1; S.found[t.tr.id]=(S.found[t.tr.id]||0)+1;
     if(sess) sess.items.push(t.tr.id);
     questAdd('collect',1); if(first) questAdd('place',1); if(t.tr.k==='toy') questAdd('toycol',1); if(t.tr.rar>=2) questAdd('rare',1);
-    let msg='我在「'+t.poi.name+'」撿到'+t.tr.name+'（'+RARITY[t.tr.rar].n+'）　+'+pts+' 分'+(mul>1?'（吃飽玩開心 ×1.5）':'')+(first?'（第一次來 +20）':'');
+    let msg='我在「'+t.poi.name+'」撿到'+t.tr.name+'（'+RARITY[t.tr.rar].n+'）　+'+pts+' 分'+(mul>1?'（吃飽玩開心 ×'+mulVal()+'）':'')+(first?'（第一次來 +20）':'');
     const st=SET_BY_ID[t.tr.id];
     if(st&&!S.setDone[st.id]&&st.ids.every(i=>S.found[i]>0)){ S.setDone[st.id]=Date.now(); addScore(SET_BONUS); msg+='\n「'+st.n+'」我們收集齊了！再送你 +'+SET_BONUS+' 分'; }
     toast(msg);
@@ -996,7 +1026,7 @@ function updateHud(){
   $('vPigs').textContent=S.miles||0;
   $('vStreak').textContent=curStreak();
   $('vScore').textContent=(S.score||0).toLocaleString();
-  checkAch(); $('vQ').textContent=questDone()+'/3'; $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn());
+  checkAch(); $('vQ').textContent=questDone()+'/3'; $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn()); $('vBonus').textContent='×'+mulVal();
   const left=STEPS_PER_PIG-S.stepBank;
   $('progTxt').textContent=walking?('再走 '+Math.ceil(left)+' 步，我就拿到下一枚獎章囉'):'按下面的「出發囉！」我才會幫你記步數、找寶物';
   $('fill').style.width=(S.stepBank/STEPS_PER_PIG*100)+'%';
@@ -1024,8 +1054,8 @@ function walked(d,lat,lng){
   const whole=Math.floor(S.acc); S.acc-=whole;
   if(whole>0){
     S.total+=whole; S.day+=whole; checkGoal(); addProgress(whole);
-    const was=bonusOn(); S.hunger=Math.max(0,S.hunger-whole/60); S.mood=Math.max(0,S.mood-whole/80);
-    if(was&&!bonusOn()) toast('我有點'+(S.hunger<40?'餓':'無聊')+'了…到 LuLu 頁面餵我或陪我玩，分數才會 ×1.5 喔');
+    const was=bonusOn(); S.hunger=Math.max(0,S.hunger-whole/60*decayK()); S.mood=Math.max(0,S.mood-whole/80*decayK());
+    if(was&&!bonusOn()) toast('我有點'+(S.hunger<40?'餓':'無聊')+'了…到 LuLu 頁面餵我或陪我玩，分數才會 ×'+mulVal()+' 喔');
     if(sess) sess.steps+=whole;
     questAdd('steps',whole);
   }
@@ -1091,8 +1121,9 @@ function renderLulu(){
   const lv=S.lvl||1, need=expNeed(lv), on=bonusOn();
   const meter=(ic,lb,v,col)=>'<div class="meter"><span class="ml">'+ui(ic,20,col)+lb+'</span><div class="mb"><i style="width:'+Math.round(v)+'%;background:'+col+'"></i></div><b>'+Math.round(v)+'</b></div>';
   let h='<div class="lv"><div class="big">Lv.'+lv+'</div><div class="xp">經驗 '+Math.floor(S.exp)+' / '+need+'<div class="xpb"><i style="width:'+Math.min(100,S.exp/need*100)+'%"></i></div></div></div>'
+    +'<div class="perks">'+PERKS.map(p=>'<div class="pk'+(hasPerk(p.lv)?' on':'')+'"><b>Lv.'+p.lv+'</b>'+p.t+'</div>').join('')+'</div>'
     +meter('bowl','肚子',S.hunger,'#F2A33A')+meter('heart','心情',S.mood,'#EE8574')
-    +'<div class="mult'+(on?' on':'')+'">'+(on?'我吃飽又玩開心了：撿寶物分數 ×1.5！':'我的肚子或心情低於 40…分數倍率 ×1（餵我、陪我玩就會恢復喔）')+'</div>';
+    +'<div class="mult'+(on?' on':'')+'">'+(on?'我吃飽又玩開心了：撿寶物分數 ×'+mulVal()+'！':'我的肚子或心情低於 40…分數倍率 ×1（餵我、陪我玩就會恢復喔）')+'</div>';
   h+='<div class="seg" style="margin-top:10px"><button data-act="sub" data-id="bag" class="'+(luluSub==='bag'?'on':'')+'">背包</button><button data-act="sub" data-id="shop" class="'+(luluSub==='shop'?'on':'')+'">配件商店</button><button data-act="sub" data-id="chat" class="'+(luluSub==='chat'?'on':'')+'">聊天</button></div>';
   if(luluSub==='chat'){ h+=renderChat(); }
   else if(luluSub==='bag'){
@@ -1244,6 +1275,7 @@ function showSummary(rec,route){
   const im=new Image(); let done=false; const go=ok=>{ if(done) return; done=true; finish(ok?im:null); };
   im.onload=()=>go(true); im.onerror=()=>go(false); im.src=POSES.cape; setTimeout(()=>go(false),1500);
 }
+$('luOk').addEventListener('click',()=>$('levelUp').classList.add('hidden'));
 $('sumClose').addEventListener('click',()=>$('summary').classList.add('hidden'));
 $('sumShare').addEventListener('click',async()=>{
   const b=sumBlob; if(!b){ toast('圖片還在畫，再按一次嘛'); return; }
@@ -1438,7 +1470,7 @@ $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); 
 addEventListener('pagehide',()=>save(true));
 walkBtn(); updateHud();
 
-window.__walk={ say, chatReply, TK, ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ showLevelUp, say, chatReply, TK, ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
