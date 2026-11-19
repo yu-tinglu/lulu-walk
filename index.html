@@ -177,6 +177,28 @@
   .acc{position:absolute;pointer-events:none;width:44%;left:40%;top:-5%}
   .acc svg{display:block;width:100%;height:auto}
   .pigm.lying .acc{width:36%;left:56%;top:27%}
+  .acc.a-face{width:36%;left:46%;top:6%}
+  .acc.a-neck{width:40%;left:42%;top:33%}
+  .pigm.lying .acc.a-face{width:26%;left:66%;top:60%}
+  .pigm.lying .acc.a-neck{width:28%;left:41%;top:64%}
+  .qrow{padding:7px 0;border-bottom:1px dashed #D6E6EC}
+  .qrow:last-child{border:0}
+  .qrow .qt{display:flex;justify-content:space-between;gap:8px;font-size:15px;font-weight:700;align-items:center}
+  .qrow .qt span:first-child{display:flex;align-items:center;gap:6px}
+  .qrow .qp{font-size:13px;color:#1B8196;white-space:nowrap}
+  .qrow .qb{height:9px;background:#D6E6EC;border-radius:5px;margin-top:5px;overflow:hidden}
+  .qrow .qb i{display:block;height:100%;background:linear-gradient(90deg,#7fd0e0,#2BA7C0)}
+  .qrow.done .qt{opacity:.6}.qrow.done .qb i{background:#8fcf8f}
+  .qbox{background:#E9F4F8;border-radius:14px;padding:8px 12px;margin-bottom:8px}
+  .qbox .qh{display:flex;justify-content:space-between;font-weight:800;color:#1B8196;margin-bottom:2px}
+  .prev{display:flex;align-items:center;gap:12px;background:linear-gradient(#DDEEF5,#FFF6E6);border-radius:16px;padding:10px 12px;margin-bottom:8px}
+  .prev .pigm{position:relative;flex:none}
+  .prev .pt{flex:1;font-size:14px;line-height:1.5}
+  .seg{display:flex;gap:6px;margin:6px 0}
+  .seg button{flex:1;border:0;background:#E4F1F6;color:#1B8196;border-radius:12px;padding:7px 0;font-weight:800;font-size:15px;font-family:inherit;cursor:pointer}
+  .seg button.on{background:#2BA7C0;color:#fff}
+  .shop.try{outline:3px solid #2BA7C0}
+  .shop{cursor:pointer}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -219,6 +241,7 @@
   <div class="pill"><span data-ui="flame" data-size="22" data-color="#ff6b35"></span> <b id="vStreak">0</b> 天</div>
   <div class="pill"><span data-ui="star" data-size="22" data-color="#f4a100"></span> <b id="vScore">0</b></div>
   <div class="pill tap" id="pLv"><span data-ui="heart" data-size="22" data-color="#EE8574"></span> Lv.<b id="vLv">1</b><b class="bonus hidden" id="vBonus">×1.5</b></div>
+  <div class="pill tap" id="pQ"><span data-ui="medal" data-size="22" data-color="#2BA7C0"></span> 任務 <b id="vQ">0/3</b></div>
 </div>
 <div id="prog"><div class="box">
   <div class="row"><span id="progTxt"></span></div>
@@ -431,14 +454,24 @@ function pickTreasure(ty){
 }
 // 配件（用分數買，會戴在 LuLu 身上）
 const ACCS=[
- {id:'party',n:'派對帽',lv:1,p:100,s:'<path fill="#7fc4ff" d="M32 3L50 38H14z"/><path fill="none" d="M21 24l24 4M26 14l14 3"/><circle cx="32" cy="4" r="4" fill="#ffd33d"/><rect x="12" y="36" width="40" height="4" rx="2" fill="#EE8574"/>'},
- {id:'bow',n:'蝴蝶結',lv:2,p:150,s:'<path fill="#ff6f91" d="M32 22L10 8v26zM32 22l22-14v26z"/><circle cx="32" cy="22" r="6" fill="#ff9ab3"/>'},
- {id:'straw',n:'草帽',lv:3,p:250,s:'<ellipse cx="32" cy="32" rx="30" ry="7" fill="#f2cf7a"/><path fill="#f2cf7a" d="M16 32c0-14 7-22 16-22s16 8 16 22z"/><path fill="#e0524d" d="M16.500 28h31l.5 4H16z"/>'},
- {id:'flower',n:'花冠',lv:4,p:300,s:'<path fill="none" stroke="#4caf50" stroke-width="3" d="M6 30c8 6 44 6 52 0"/><g stroke-width="1.600"><circle cx="12" cy="29" r="5.500" fill="#ffd33d"/><circle cx="23" cy="33" r="5.500" fill="#fff"/><circle cx="32" cy="34" r="6" fill="#ff8fb3"/><circle cx="41" cy="33" r="5.500" fill="#b28dff"/><circle cx="52" cy="29" r="5.500" fill="#fff"/></g>'},
- {id:'chef',n:'廚師帽',lv:5,p:400,s:'<path fill="#fff" d="M14 38V22a9 9 0 0 1 6-16 10 10 0 0 1 24 0 9 9 0 0 1 6 16v16z"/><rect x="14" y="31" width="36" height="8" rx="2" fill="#f1f1f1"/><path fill="none" d="M26 16v10M38 16v10"/>'},
- {id:'crown',n:'小皇冠',lv:7,p:800,s:'<path fill="#ffc83d" d="M8 38L4 10l16 12 12-16 12 16 16-12-4 28z"/><rect x="8" y="34" width="48" height="6" rx="2" fill="#f4a100"/><circle cx="32" cy="24" r="3.500" fill="#ef4b4b"/><circle cx="18" cy="28" r="2.600" fill="#4e8fe0"/><circle cx="46" cy="28" r="2.600" fill="#4caf50"/>'}
+ {id:'bandana',slot:'neck',n:'黃色小方巾',lv:1,p:80,s:'<path fill="#ffd33d" d="M4 6h56L32 40z"/><g fill="#fff" stroke="none"><circle cx="20" cy="14" r="3"/><circle cx="32" cy="14" r="3"/><circle cx="44" cy="14" r="3"/><circle cx="32" cy="26" r="3"/></g>'},
+ {id:'party',slot:'head',n:'派對帽',lv:1,p:100,s:'<path fill="#7fc4ff" d="M32 3L50 38H14z"/><path fill="none" d="M21 24l24 4M26 14l14 3"/><circle cx="32" cy="4" r="4" fill="#ffd33d"/><rect x="12" y="36" width="40" height="4" rx="2" fill="#EE8574"/>'},
+ {id:'glasses',slot:'face',n:'圓框眼鏡',lv:2,p:120,s:'<circle cx="19" cy="22" r="11" fill="#fff" fill-opacity=".4"/><circle cx="45" cy="22" r="11" fill="#fff" fill-opacity=".4"/><path fill="none" d="M30 21h4"/>'},
+ {id:'bow',slot:'head',n:'蝴蝶結',lv:2,p:150,s:'<path fill="#ff6f91" d="M32 22L10 8v26zM32 22l22-14v26z"/><circle cx="32" cy="22" r="6" fill="#ff9ab3"/>'},
+ {id:'beanie',slot:'head',n:'毛線帽',lv:2,p:180,s:'<path fill="#4e8fe0" d="M12 38c0-18 9-30 20-30s20 12 20 30z"/><rect x="10" y="32" width="44" height="8" rx="4" fill="#2f66b3"/><circle cx="32" cy="6" r="5" fill="#fff"/>'},
+ {id:'scarf',slot:'neck',n:'紅圍巾',lv:3,p:200,s:'<rect x="4" y="6" width="56" height="14" rx="7" fill="#e0524d"/><path fill="#e0524d" d="M40 18h12l4 22H42z"/><path fill="none" d="M14 13h36M46 28h6"/>'},
+ {id:'straw',slot:'head',n:'草帽',lv:3,p:250,s:'<ellipse cx="32" cy="32" rx="30" ry="7" fill="#f2cf7a"/><path fill="#f2cf7a" d="M16 32c0-14 7-22 16-22s16 8 16 22z"/><path fill="#e0524d" d="M16.500 28h31l.5 4H16z"/>'},
+ {id:'shades',slot:'face',n:'墨鏡',lv:4,p:220,s:'<rect x="6" y="12" width="24" height="18" rx="7" fill="#2f3a3a"/><rect x="34" y="12" width="24" height="18" rx="7" fill="#2f3a3a"/><path fill="none" d="M30 18h4"/><path fill="none" stroke="#fff" stroke-opacity=".6" d="M11 17l5-2M39 17l5-2"/>'},
+ {id:'flower',slot:'head',n:'花冠',lv:4,p:300,s:'<path fill="none" stroke="#4caf50" stroke-width="3" d="M6 30c8 6 44 6 52 0"/><g stroke-width="1.600"><circle cx="12" cy="29" r="5.500" fill="#ffd33d"/><circle cx="23" cy="33" r="5.500" fill="#fff"/><circle cx="32" cy="34" r="6" fill="#ff8fb3"/><circle cx="41" cy="33" r="5.500" fill="#b28dff"/><circle cx="52" cy="29" r="5.500" fill="#fff"/></g>'},
+ {id:'bowtie',slot:'neck',n:'藍色領結',lv:5,p:260,s:'<path fill="#4e8fe0" d="M32 20L8 8v24zM32 20l24-12v24z"/><circle cx="32" cy="20" r="6" fill="#2f66b3"/>'},
+ {id:'chef',slot:'head',n:'廚師帽',lv:5,p:400,s:'<path fill="#fff" d="M14 38V22a9 9 0 0 1 6-16 10 10 0 0 1 24 0 9 9 0 0 1 6 16v16z"/><rect x="14" y="31" width="36" height="8" rx="2" fill="#f1f1f1"/><path fill="none" d="M26 16v10M38 16v10"/>'},
+ {id:'heartglass',slot:'face',n:'愛心眼鏡',lv:6,p:350,s:'<path fill="#ff6f91" d="M19 34c-10-6-12-11-12-15a6.500 6.500 0 0 1 12-3 6.500 6.500 0 0 1 12 3c0 4-2 9-12 15z"/><path fill="#ff6f91" d="M45 34c-10-6-12-11-12-15a6.500 6.500 0 0 1 12-3 6.500 6.500 0 0 1 12 3c0 4-2 9-12 15z"/>'},
+ {id:'bucket',slot:'head',n:'小熊漁夫帽',lv:6,p:500,s:'<circle cx="16" cy="13" r="6" fill="#e3b567"/><circle cx="48" cy="13" r="6" fill="#e3b567"/><ellipse cx="32" cy="34" rx="30" ry="7" fill="#f3dfa6"/><path fill="#e3b567" d="M14 34c0-16 8-26 18-26s18 10 18 26z"/><path fill="#f3dfa6" d="M14.500 28h35l.5 6H14z"/><ellipse cx="32" cy="14" rx="5" ry="3.500" fill="#b9814a"/>'},
+ {id:'crown',slot:'head',n:'小皇冠',lv:7,p:800,s:'<path fill="#ffc83d" d="M8 38L4 10l16 12 12-16 12 16 16-12-4 28z"/><rect x="8" y="34" width="48" height="6" rx="2" fill="#f4a100"/><circle cx="32" cy="24" r="3.500" fill="#ef4b4b"/><circle cx="18" cy="28" r="2.600" fill="#4e8fe0"/><circle cx="46" cy="28" r="2.600" fill="#4caf50"/>'}
 ];
+const SLOTS=[['head','帽子'],['face','臉部'],['neck','脖子']];
 const ACC_BY={}; ACCS.forEach(a=>ACC_BY[a.id]=a);
+function accHtml(w){ let h=''; SLOTS.forEach(sl=>{ const id=w&&w[sl[0]]; if(id&&ACC_BY[id]) h+='<span class="acc a-'+sl[0]+'">'+accSvg(id,120)+'</span>'; }); return h; }
 function accSvg(id,w){ const a=ACC_BY[id]; return a?'<svg viewBox="0 0 64 42" width="'+(w||54)+'"><g stroke="#5b3a3a" stroke-width="2.200" stroke-linejoin="round" stroke-linecap="round">'+a.s+'</g></svg>':''; }
 function flowerSvg(c,size){
   return '<svg viewBox="0 0 24 24" width="'+size+'" height="'+size+'"><g fill="'+c+'" stroke="rgba(0,0,0,.25)" stroke-width=".8"><circle cx="12" cy="6" r="4"/><circle cx="18" cy="11" r="4"/><circle cx="16" cy="18" r="4"/><circle cx="8" cy="18" r="4"/><circle cx="6" cy="11" r="4"/></g><circle cx="12" cy="12.500" r="3" fill="#ffd33d" stroke="rgba(0,0,0,.25)" stroke-width=".8"/></svg>';
@@ -454,12 +487,13 @@ const POSES={"cape": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADcCAYA
 
 /* ---------- 存檔 ---------- */
 const KEY='luluwalk.v1';
-let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:null,setDone:{},walks:[],q:null};
+let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:{},setDone:{},walks:[],q:null};
 try{ const j=JSON.parse(localStorage.getItem(KEY)||'null'); if(j) S=Object.assign(S,j); }catch(e){}
 const todayKey=()=>{ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
 if(!S.found||!Object.keys(S.found).length){ S.found=Object.assign({},S.items||{}); }
 if(!S.earned) S.earned=S.score||0;
 ['owned','setDone'].forEach(k=>{ if(!S[k]) S[k]={}; }); if(!S.walks) S.walks=[];
+if(typeof S.wear==='string') S.wear={head:S.wear}; if(!S.wear||typeof S.wear!=='object') S.wear={};
 let walking=false, sess=null, sessTimer=0;
 if (S.dayKey!==todayKey()){ S.dayKey=todayKey(); S.day=0; }
 let saveT=0; function save(force){ if(simMode) return; const n=Date.now(); if(!force&&n-saveT<2000) return; saveT=n; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
@@ -498,7 +532,7 @@ map.on('dragstart',()=>{ follow=false; });
 /* ---------- 標記 ---------- */
 function pigIcon(size,me,pose){
   const src=S.skin||POSES[pose||'cape'];
-  return L.divIcon({className:'pigm'+(me?' me':''),html:'<div class="in"><img src="'+src+'">'+((me&&!S.skin&&S.wear&&ACC_BY[S.wear])?'<span class="acc">'+accSvg(S.wear,120)+'</span>':'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
+  return L.divIcon({className:'pigm'+(me?' me':''),html:'<div class="in"><img src="'+src+'">'+((me&&!S.skin)?accHtml(S.wear):'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
 }
 function setLook(o,pose,flip){
   if(o.pose===pose&&o.flip===flip) return;
@@ -664,21 +698,27 @@ function refreshTreasures(){
 function poiTick(){ ensurePois(); if(Date.now()-lastRef>5000){ lastRef=Date.now(); refreshTreasures(); } }
 /* ---------- 每日任務 ---------- */
 const QPOOL=[
- {t:'steps',n:'今天走 {n} 步',need:[1500,2500,4000],pts:[60,100,160]},
- {t:'collect',n:'撿到 {n} 個寶物',need:[2,3,5],pts:[50,80,130]},
- {t:'place',n:'造訪 {n} 個新景點',need:[1,2,3],pts:[60,100,150]},
- {t:'feed',n:'餵 LuLu 吃 {n} 次東西',need:[1,2,3],pts:[30,50,80]},
- {t:'play',n:'陪 LuLu 玩 {n} 次玩具',need:[1,2,2],pts:[30,50,60]}
+ {t:'steps',ic:'step',n:'今天走 {n} 步',need:[1500,2500,4000],pts:[60,100,160]},
+ {t:'dist',ic:'walk',n:'走路累積 {n}',km:1,need:[800,1500,2500],pts:[50,90,150]},
+ {t:'collect',ic:'bag',n:'撿到 {n} 個寶物',need:[2,3,5],pts:[50,80,130]},
+ {t:'toycol',ic:'star',n:'撿到 {n} 個玩具',need:[1,2,3],pts:[50,90,130]},
+ {t:'rare',ic:'medal',n:'撿到 {n} 個稀有（藍框）以上的寶物',need:[1,1,2],pts:[80,100,180]},
+ {t:'place',ic:'pin',n:'造訪 {n} 個新景點',need:[1,2,3],pts:[60,100,150]},
+ {t:'feed',ic:'bowl',n:'餵 LuLu 吃 {n} 次東西',need:[1,2,3],pts:[30,50,80]},
+ {t:'play',ic:'heart',n:'陪 LuLu 玩 {n} 次玩具',need:[1,2,2],pts:[30,50,60]}
 ];
 function ensureQuests(){
   if(S.q&&S.q.key===S.dayKey) return;
   let seed=0; for(const ch of S.dayKey) seed=(seed*31+ch.charCodeAt(0))>>>0;
   const rnd=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
-  const pool=QPOOL.slice(), list=[];
-  while(list.length<3){ const d=pool.splice(Math.floor(rnd()*pool.length),1)[0]; const lv=Math.floor(rnd()*3); list.push({t:d.t,need:d.need[lv],pts:d.pts[lv],got:0,done:false}); }
+  const pool=QPOOL.slice(), list=[], lvs=[0,1,2].sort(()=>rnd()-.5);
+  while(list.length<3){ const d=pool.splice(Math.floor(rnd()*pool.length),1)[0], lv=lvs[list.length]; list.push({t:d.t,need:d.need[lv],pts:d.pts[lv],got:0,done:false}); }
   S.q={key:S.dayKey,list,bonus:false};
 }
-function questText(q){ return QPOOL.find(x=>x.t===q.t).n.replace('{n}',q.need.toLocaleString()); }
+const qDef=q=>QPOOL.find(x=>x.t===q.t);
+const qNum=(q,v)=>qDef(q).km?(v/1000).toFixed(1).replace(/\.0$/,'')+' 公里':v.toLocaleString();
+function questText(q){ const d=qDef(q); return d.n.replace('{n}',d.km?qNum(q,q.need):q.need.toLocaleString()); }
+function questDone(){ ensureQuests(); return S.q.list.filter(q=>q.done).length; }
 function questAdd(t,n){
   ensureQuests(); let msg=[];
   S.q.list.forEach(q=>{
@@ -688,6 +728,7 @@ function questAdd(t,n){
   });
   if(!S.q.bonus&&S.q.list.every(q=>q.done)){ S.q.bonus=true; addScore(100); msg.push('今日任務全部完成！額外 +100 分'); }
   if(msg.length){ setTimeout(()=>{ toast(msg.join('\n')); vibrate([40,40,80]); updateHud(); },1500); }
+  updateHud();
 }
 function bonusOn(){ return S.hunger>=40&&S.mood>=40; }
 function addScore(n){ S.score=(S.score||0)+n; S.earned=(S.earned||0)+n; if(sess) sess.pts+=n; }
@@ -711,7 +752,7 @@ function checkTreasures(){
     S.recent=(S.recent||[]).filter(n=>n!==t.poi.name); S.recent.unshift(t.poi.name); S.recent=S.recent.slice(0,8);
     addScore(pts); S.coll++; S.items[t.tr.id]=(S.items[t.tr.id]||0)+1; S.found[t.tr.id]=(S.found[t.tr.id]||0)+1;
     if(sess) sess.items.push(t.tr.id);
-    questAdd('collect',1); if(first) questAdd('place',1);
+    questAdd('collect',1); if(first) questAdd('place',1); if(t.tr.k==='toy') questAdd('toycol',1); if(t.tr.rar>=2) questAdd('rare',1);
     let msg='在「'+t.poi.name+'」撿到'+t.tr.name+'（'+RARITY[t.tr.rar].n+'）　+'+pts+' 分'+(mul>1?'（加成 ×1.5）':'')+(first?'（首次造訪 +20）':'');
     const st=SET_BY_ID[t.tr.id];
     if(st&&!S.setDone[st.id]&&st.ids.every(i=>S.found[i]>0)){ S.setDone[st.id]=Date.now(); addScore(SET_BONUS); msg+='\n集滿「'+st.n+'」！額外 +'+SET_BONUS+' 分'; }
@@ -734,7 +775,7 @@ function updateHud(){
   $('vPigs').textContent=S.miles||0;
   $('vStreak').textContent=curStreak();
   $('vScore').textContent=(S.score||0).toLocaleString();
-  $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn());
+  $('vQ').textContent=questDone()+'/3'; $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn());
   const left=STEPS_PER_PIG-S.stepBank;
   $('progTxt').textContent=walking?('再走 '+Math.ceil(left)+' 步，拿到下一枚獎章'):'按下面的「開始散步」才會計步、撿寶物';
   $('fill').style.width=(S.stepBank/STEPS_PER_PIG*100)+'%';
@@ -766,6 +807,7 @@ function walked(d,lat,lng){
     if(sess) sess.steps+=whole;
     questAdd('steps',whole);
   }
+  questAdd('dist',d);
   if(sess){ sess.dist+=d; const lr=sess.route[sess.route.length-1]; if(hav({lat:lr[0],lng:lr[1]},{lat,lng})>3){ sess.route.push([lat,lng]); sess.poly.addLatLng([lat,lng]); } }
   S.flowDist+=d;
   while(S.flowDist>=FLOWER_EVERY){ S.flowDist-=FLOWER_EVERY; plantFlower(lat,lng); }
@@ -812,7 +854,7 @@ function renderDiary(){
   const c=(n,t)=>'<div class="c"><div class="n">'+n+'</div><div class="t">'+t+'</div></div>';
   const W=S.walks||[];
   ensureQuests();
-  const qh='<div class="c wide" style="text-align:left;padding:8px 12px;background:#E9F4F8"><div class="t" style="margin-bottom:4px;color:#1B8196;font-weight:800">今日任務'+(S.q.bonus?'（全部完成）':'（全部完成再 +100 分）')+'</div>'+S.q.list.map(q=>'<div class="hist"><span>'+(q.done?'✓ ':'')+questText(q)+'</span><span>'+(q.done?'已領':q.got.toLocaleString()+' / '+q.need.toLocaleString()+'　+'+q.pts+' 分')+'</span></div>').join('')+'</div>';
+  const qh='<div class="qbox" style="grid-column:1/-1"><div class="qh"><span>今日任務　'+questDone()+' / 3</span><span style="font-size:13px">'+(S.q.bonus?'全部完成':'全部完成再 +100 分')+'</span></div>'+S.q.list.map(q=>'<div class="qrow'+(q.done?' done':'')+'"><div class="qt"><span>'+ui(qDef(q).ic,22,q.done?'#6bb36b':'#2BA7C0')+questText(q)+'</span><span class="qp">'+(q.done?'已完成':'+'+q.pts+' 分')+'</span></div><div class="qb"><i style="width:'+(q.got/q.need*100)+'%"></i></div><div class="qp" style="margin-top:2px">'+qNum(q,q.got)+(qDef(q).km?'':'')+' / '+qNum(q,q.need)+'</div></div>').join('')+'</div>';
   $('diary').innerHTML=qh+
     c(Math.floor(S.day).toLocaleString(),'今日步數')+c(Math.floor(S.total).toLocaleString(),'累計步數')+c(((S.dist||0)/1000).toFixed(1)+' km','累計距離')+
     c(S.miles||0,ui('medal',20,'#f4a100')+' 獎章')+c((S.score||0).toLocaleString(),ui('star',20,'#f4a100')+' 可用分數')+c(curStreak()+' 天',ui('flame',20,'#ff6b35')+' 連續達標')+
@@ -821,7 +863,7 @@ function renderDiary(){
     ((S.recent&&S.recent.length)?'<div class="c wide"><div class="t">最近造訪</div><div class="n" style="font-size:15px;line-height:1.5">'+S.recent.map(esc).join('、')+'</div></div>':'')+
     '';
 }
-let bagSel=null;
+let bagSel=null, tryOn=null, shopCat='head', luluSub='bag';
 const FOOD_HUNGER=[8,16,30,50], FOOD_MOOD=[2,5,10,18], TOY_MOOD=[10,18,32,55], EXP_GAIN=[4,10,25,60];
 function renderLulu(){
   const lv=S.lvl||1, need=expNeed(lv), on=bonusOn();
@@ -829,6 +871,8 @@ function renderLulu(){
   let h='<div class="lv"><div class="big">Lv.'+lv+'</div><div class="xp">經驗 '+Math.floor(S.exp)+' / '+need+'<div class="xpb"><i style="width:'+Math.min(100,S.exp/need*100)+'%"></i></div></div></div>'
     +meter('bowl','肚子',S.hunger,'#F2A33A')+meter('heart','心情',S.mood,'#EE8574')
     +'<div class="mult'+(on?' on':'')+'">'+(on?'吃飽玩開心：撿寶物分數 ×1.5':'肚子或心情低於 40：分數倍率 ×1（餵牠、陪牠玩就會恢復）')+'</div>';
+  h+='<div class="seg" style="margin-top:10px"><button data-act="sub" data-id="bag" class="'+(luluSub==='bag'?'on':'')+'">背包</button><button data-act="sub" data-id="shop" class="'+(luluSub==='shop'?'on':'')+'">配件商店</button></div>';
+  if(luluSub==='bag'){
   // 背包
   const ids=ALL_ITEMS.filter(x=>(S.items[x.id]||0)>0);
   h+='<div class="sech"><span>'+ui('bag',22,'#C9604F')+' 背包</span><span class="small">點一下選東西</span></div>';
@@ -841,17 +885,23 @@ function renderLulu(){
       h+='<div class="bagInfo"><span><b>'+sel.n+'</b>（'+RARITY[sel.r].n+'）<br>'+eff+'　經驗 +'+EXP_GAIN[sel.r]+'</span><button class="btn" data-act="use" data-id="'+sel.id+'">'+(sel.k==='food'?'餵牠吃':'陪牠玩')+'</button></div>';
     } else h+='<div class="bagInfo"><span class="small">選一個東西，餵 LuLu 或陪牠玩</span></div>';
   }
+  } else {
   // 商店
+  const W=S.wear||{}, tr=Object.assign({},W,tryOn||{});
   h+='<div class="sech"><span>'+ui('star',22,'#f4a100')+' 配件商店</span><span class="small">可用分數 '+(S.score||0).toLocaleString()+'</span></div>';
-  if(S.skin) h+='<div class="small" style="margin-bottom:6px">目前用了自選的圖，配件不會顯示（到設定按「還原圖」）</div>';
-  h+=ACCS.map(a=>{
-    const own=S.owned[a.id], wear=S.wear===a.id, locked=lv<a.lv;
+  const names=SLOTS.map(sl=>tr[sl[0]]&&ACC_BY[tr[sl[0]]]?ACC_BY[tr[sl[0]]].n:'').filter(Boolean);
+  h+='<div class="prev"><div class="pigm" style="width:120px;height:120px"><div class="in" style="width:100%;height:100%"><img src="'+(S.skin||POSES.cape)+'">'+(S.skin?'':accHtml(tr))+'</div></div><div class="pt"><b>'+(tryOn&&Object.keys(tryOn).length?'試穿中':'目前造型')+'</b><br>'+(names.length?names.join('、'):'還沒有穿戴')+'<br><span class="small">點下面的項目可以試穿；不同部位可以一起戴</span>'+(Object.keys(W).some(k=>W[k])?'<br><button class="btn alt" style="padding:6px 14px;font-size:14px;margin-top:4px" data-act="strip">全部脫下</button>':'')+'</div></div>';
+  if(S.skin) h+='<div class="small" style="margin-bottom:6px">目前用了自選的圖，配件不會顯示在地圖上（到設定按「還原圖」）</div>';
+  h+='<div class="seg">'+SLOTS.map(sl=>'<button data-act="cat" data-id="'+sl[0]+'" class="'+(shopCat===sl[0]?'on':'')+'">'+sl[1]+'</button>').join('')+'</div>';
+  h+=ACCS.filter(a=>a.slot===shopCat).map(a=>{
+    const own=S.owned[a.id], wear=W[a.slot]===a.id, locked=lv<a.lv, trying=tryOn&&tryOn[a.slot]===a.id;
     let btn;
     if(own) btn='<button class="btn'+(wear?' alt':'')+'" data-act="wear" data-id="'+a.id+'">'+(wear?'脫下':'戴上')+'</button>';
     else if(locked) btn='<button class="btn" disabled>Lv.'+a.lv+' 解鎖</button>';
     else btn='<button class="btn" data-act="buy" data-id="'+a.id+'"'+((S.score||0)<a.p?' style="opacity:.55"':'')+'>'+a.p+' 分</button>';
-    return '<div class="shop"><div class="pv">'+accSvg(a.id,48)+'</div><div class="nm">'+a.n+'<small>'+(own?(wear?'穿戴中':'已擁有'):(locked?'需要 Lv.'+a.lv:'Lv.'+a.lv+' 以上可買'))+'</small></div>'+btn+'</div>';
+    return '<div class="shop'+(trying?' try':'')+'" data-act="try" data-id="'+a.id+'"><div class="pv">'+accSvg(a.id,48)+'</div><div class="nm">'+a.n+'<small>'+(own?(wear?'穿戴中':'已擁有'):(locked?'需要 Lv.'+a.lv+'（還差 '+(a.p)+' 分）':'Lv.'+a.lv+' 以上可買'))+'</small></div>'+btn+'</div>';
   }).join('');
+  }
   $('lulu').innerHTML=h;
 }
 function useItem(id){
@@ -869,19 +919,24 @@ $('lulu').addEventListener('click',e=>{
   const id=el.dataset.id, act=el.dataset.act;
   if(act==='bag'){ bagSel=(bagSel===id)?null:id; renderLulu(); }
   else if(act==='use') useItem(id);
+  else if(act==='sub'){ luluSub=id; tryOn=null; renderLulu(); }
+  else if(act==='cat'){ shopCat=id; renderLulu(); }
+  else if(act==='try'){ if(e.target.closest('button')) { /* handled by button act below */ } else { const a=ACC_BY[id]; tryOn=tryOn||{}; if(tryOn[a.slot]===id) delete tryOn[a.slot]; else tryOn[a.slot]=id; renderLulu(); } }
+  else if(act==='strip'){ S.wear={}; tryOn=null; save(true); refreshIcons(); renderLulu(); }
   else if(act==='buy'){
     const a=ACC_BY[id]; if(!a||S.owned[id]) return;
     if((S.lvl||1)<a.lv){ toast('LuLu 要 Lv.'+a.lv+' 才能戴'); return; }
     if((S.score||0)<a.p){ toast('分數不夠，還差 '+(a.p-(S.score||0))+' 分'); return; }
-    S.score-=a.p; S.owned[id]=1; S.wear=id; save(true); refreshIcons(); updateHud(); renderLulu(); toast('買了'+a.n+'，已經幫牠戴上');
+    S.score-=a.p; S.owned[id]=1; S.wear[a.slot]=id; tryOn=null; save(true); refreshIcons(); updateHud(); renderLulu(); toast('買了'+a.n+'，已經幫牠戴上');
   }
-  else if(act==='wear'){ S.wear=(S.wear===id)?null:id; save(true); refreshIcons(); renderLulu(); }
+  else if(act==='wear'){ const a=ACC_BY[id]; S.wear[a.slot]=(S.wear[a.slot]===id)?null:id; tryOn=null; save(true); refreshIcons(); renderLulu(); }
 });
 let curTab='diary';
 function showTab(t){
   curTab=t;
   [['diary','pDiary'],['lulu','pLulu'],['coll','pColl'],['set','pSet']].forEach(p=>$(p[1]).classList.toggle('hidden',p[0]!==t));
   document.querySelectorAll('#tabs .tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  if(t!=='lulu') tryOn=null;
   if(t==='diary') renderDiary();
   else if(t==='lulu') renderLulu();
   else if(t==='coll') $('collection').innerHTML=SETS.map(setHtml).join('')+'<div class="small" style="text-align:center">點圖示看名稱；邊框顏色：灰＝普通、綠＝少見、藍＝稀有、紫＝傳說</div>';
@@ -966,6 +1021,7 @@ $('sumShare').addEventListener('click',async()=>{
 });
 $('bWalk').addEventListener('click',()=>{ if(walking){ if(simMode){ toast('試玩中，結束請到設定關閉模擬'); return; } endWalk(); } else startWalk(); });
 $('pLv').addEventListener('click',()=>openSheet('lulu'));
+$('pQ').addEventListener('click',()=>openSheet('diary'));
 
 /* ---------- 位置處理 ---------- */
 let simMode=false, lastCarToast=0;
@@ -1149,7 +1205,7 @@ $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); 
 addEventListener('pagehide',()=>save(true));
 walkBtn(); updateHud();
 
-window.__walk={ quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
