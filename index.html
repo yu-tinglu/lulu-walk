@@ -133,6 +133,8 @@
   .tre.toy{border-radius:18px}
   .pigm .zz{top:-14px;right:-10px}
   @media (max-width:430px){.pill{font-size:14px;padding:6px 10px}.card{padding:22px 20px}.card ul{font-size:15px}.diary .c .n{font-size:21px}}
+  .treWrap{overflow:visible}
+  .trelab{position:absolute;top:62px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.93);border-radius:10px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap;color:#6A4640;box-shadow:0 1px 3px rgba(0,0,0,.25);pointer-events:none;max-width:170px;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -142,7 +144,7 @@
   <div class="pill"><span data-ui="step" data-size="22" data-color="#5b8def"></span> <b id="vSteps">0</b><span class="dim"> / <span id="vGoal">3000</span></span></div>
   <div class="pill"><span data-ui="medal" data-size="22" data-color="#f4a100"></span> <b id="vPigs">0</b></div>
   <div class="pill"><span data-ui="flame" data-size="22" data-color="#ff6b35"></span> <b id="vStreak">0</b> 天</div>
-  <div class="pill"><span data-ui="flower" data-size="22" data-color="#EE8574"></span> <b id="vFlw">0</b></div>
+  <div class="pill"><span data-ui="star" data-size="22" data-color="#f4a100"></span> <b id="vScore">0</b></div>
 </div>
 <div id="prog"><div class="box">
   <div class="row"><span id="progTxt"></span></div>
@@ -184,15 +186,17 @@
     <p>帶著 LuLu豬出門走走吧！走路時牠會在真實地圖上跟著你的位置移動。</p>
     <ul>
       <li>每天走 <b>3000 步</b>達成目標，連續達成的天數會累積（<span data-ui="flame" data-size="19" data-color="#ff6b35"></span>）</li>
-      <li>每 <b>500 步</b>拿到一枚獎章（<span data-ui="medal" data-size="19" data-color="#f4a100"></span>），走過的路會種下花（<span data-ui="flower" data-size="19" data-color="#EE8574"></span>）</li>
-      <li>地圖上有 <b>30 多種食物</b>和 <b>20 多種玩具</b>，走到附近就能撿，越稀有獎章進度加越多</li>
+      <li>每走 <b>500 步</b>拿到一枚獎章（<span data-ui="medal" data-size="19" data-color="#f4a100"></span>），走過的路會種下花（<span data-ui="flower" data-size="19" data-color="#EE8574"></span>）</li>
+      <li>寶物只會出現在附近<b>真實的公共場所和景點</b>（公園、寺廟、博物館、車站…），走到那裡才能撿</li>
+      <li>有 <b>30 多種食物</b>和 <b>20 多種玩具</b>，撿到會得到<b>分數</b>，越稀有分數越高，第一次造訪的景點再加分</li>
+      <li>同一個景點撿完後，隔天才會再有寶物</li>
       <li>撿到玩具，LuLu豬會在旁邊玩一陣子</li>
       <li>畫面上方的箭頭指向最近的寶物，點一下可以看位置</li>
       <li>「模擬走路」只是試玩，不會計入你的紀錄</li>
     </ul>
     <button class="btn" id="goGps"><span data-ui="pin" data-size="25" data-color="#fff"></span>用 GPS 開始（出門玩）</button>
     <button class="btn alt" id="goSim"><span data-ui="walk" data-size="25" data-color="#C9604F"></span>在家先試玩（模擬走路）</button>
-    <p class="small">LuLu豬角色圖 © CICI / TOYO+；背景音樂為「罐頭豬LuLu主題曲」。本遊戲僅供個人非商用的粉絲自玩，請勿公開散布。</p>
+    <p class="small">LuLu豬角色圖 © CICI / TOYO+；背景音樂為「罐頭豬LuLu主題曲」。本遊戲僅供個人非商用的粉絲自玩，請勿公開散布。景點資料來自 OpenStreetMap 貢獻者。</p>
     <p class="small">定位只在你的手機上使用，不會上傳。請保持畫面開啟，切到背景會暫停計步。</p>
   </div>
 </div>
@@ -203,7 +207,7 @@
 if (typeof L==='undefined'){ document.body.insertAdjacentHTML('afterbegin','<div style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-size:18px;color:#a33">地圖元件載入失敗，請確認網路連線後重新整理。</div>'); return; }
 
 /* ---------- 設定 ---------- */
-const STEP_LEN=0.72, STEPS_PER_PIG=500, FLOWER_EVERY=40, TRE_RADIUS=28, MAX_SHOW=0;
+const STEP_LEN=0.72, STEPS_PER_PIG=500, FLOWER_EVERY=40, TRE_RADIUS=60, MAX_SHOW=0, MAX_T=12, VISIT_COOLDOWN=20*3600e3;
 /* ---------- 圖示（全部是內建向量圖，不使用表情符號） ---------- */
 // 介面小圖示：24x24、單色（用 currentColor 上色）
 const UI={
@@ -220,6 +224,7 @@ const UI={
   image:'<rect x="2.500" y="4" width="19" height="16" rx="3"/><circle cx="8.500" cy="9.500" r="2" fill="#fff"/><path d="M3 18l6-5.500 4 3.500 3-2.500 5 4.500v1H3z" fill="#fff" opacity=".85"/>',
   walk:'<circle cx="13" cy="4" r="2.300"/><path d="M10.500 8.500l3-1 2.500 3.500 3 .8-.5 2-3.800-.8-1.700-2.200-1 4.200 2.800 3.200V22h-2.200v-3.200l-2.600-2.500-.8 2.700-3.700 3-1.300-1.600 3.200-2.600 1.500-6.500-2.200 1-.6 2.700-2-.5.800-3.800z"/>',
   undo:'<path d="M9 5L3 11l6 6v-4c5 0 8 1.500 10 6 0-6-3-11-10-11z"/>',
+  star:'<path d="M12 2l3 6.500 7 .8-5.200 4.800 1.500 7L12 17.500 5.700 21l1.500-7L2 9.300l7-.8z"/>',
   arrow:'<path d="M3 3l18 9-18 9 4.500-9z"/>',
   zzz:'<path d="M4 4h7L4 13h7M13 12h6l-6 8h6" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linejoin="round" stroke-linecap="round"/>'
 };
@@ -294,13 +299,13 @@ const TOYS=[
 ];
 FOODS.forEach(x=>x.k='food'); TOYS.forEach(x=>x.k='toy');
 const ALL_ITEMS=FOODS.concat(TOYS);
-const RARITY=[{n:'普通',bonus:20,w:58,c:'#c4ccd6'},{n:'少見',bonus:40,w:26,c:'#6fcf6f'},{n:'稀有',bonus:90,w:12,c:'#5b8def'},{n:'傳說',bonus:200,w:4,c:'#b266ff'}];
+const RARITY=[{n:'普通',pts:10,w:58,c:'#c4ccd6'},{n:'少見',pts:25,w:26,c:'#6fcf6f'},{n:'稀有',pts:60,w:12,c:'#5b8def'},{n:'傳說',pts:150,w:4,c:'#b266ff'}];
 function pickTreasure(){
   const list=Math.random()<.68?FOODS:TOYS;
   let r=Math.random()*100, ri=0; for(;ri<RARITY.length-1;ri++){ if((r-=RARITY[ri].w)<0) break; }
   let pool=list.filter(x=>x.r===ri); if(!pool.length) pool=list;
   const it=pool[Math.floor(Math.random()*pool.length)];
-  return {id:it.id,name:it.n,k:it.k,rar:it.r,bonus:RARITY[it.r].bonus,svg:it.s};
+  return {id:it.id,name:it.n,k:it.k,rar:it.r,pts:RARITY[it.r].pts,svg:it.s};
 }
 const ITEM_BY_ID={}; ALL_ITEMS.forEach(x=>ITEM_BY_ID[x.id]=x);
 function flowerSvg(c,size){
@@ -317,7 +322,7 @@ const POSES={"cape": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADcCAYA
 
 /* ---------- 存檔 ---------- */
 const KEY='luluwalk.v1';
-let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{}};
+let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[]};
 try{ const j=JSON.parse(localStorage.getItem(KEY)||'null'); if(j) S=Object.assign(S,j); }catch(e){}
 const todayKey=()=>{ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
 if (S.dayKey!==todayKey()){ S.dayKey=todayKey(); S.day=0; }
@@ -382,7 +387,7 @@ function initPlayer(lat,lng){
   syncFollowers();
   S.flowers.forEach(f=>addFlowerMk(f[0],f[1]));
   map.setView([lat,lng],17,{animate:false});
-  fillTreasures(); updateNear();
+  ensurePois(); refreshTreasures();
   updateHud();
 }
 function syncFollowers(){
@@ -413,30 +418,129 @@ function plantFlower(lat,lng){
   addFlowerMk(la,ln);
 }
 
-/* ---------- 寶物 ---------- */
-function spawnTreasure(c){
-  const b=Math.random()*6.283, d=90+Math.random()*280;
-  const lat=c.lat+mLat(Math.cos(b)*d), lng=c.lng+mLng(Math.sin(b)*d,c.lat);
+/* ---------- 寶物：只會出現在附近真實的公共場所／景點 ---------- */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const POI_KEY='luluwalk.poi.v1', POI_TTL=7*864e5;
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+let poiCache={}; try{ poiCache=JSON.parse(localStorage.getItem(POI_KEY)||'{}')||{}; }catch(e){}
+let pois=[], poiCenter=null, poiLoading=false, poiRetryAt=0, lastRef=0;
+const cellKey=(lat,lng)=>Math.round(lat*50)+','+Math.round(lng*50);
+const FALLBACK_TPE=[['台北101',25.0339,121.5645,'景點'],['中正紀念堂',25.0360,121.5199,'紀念館'],['國父紀念館',25.0402,121.5601,'紀念館'],['大安森林公園',25.0300,121.5360,'公園'],['龍山寺',25.0372,121.4999,'寺廟'],['台北車站',25.0478,121.5170,'車站'],['西門紅樓',25.0422,121.5069,'古蹟'],['華山1914文化創意產業園區',25.0442,121.5294,'文創園區'],['台北市立美術館',25.0725,121.5249,'美術館'],['行天宮',25.0595,121.5333,'寺廟'],['松山文創園區',25.0440,121.5606,'文創園區'],['台北市政府',25.0375,121.5637,'公共建築'],['二二八和平公園',25.0425,121.5155,'公園'],['誠品生活松菸店',25.0445,121.5612,'商場']].map((x,i)=>({id:'f'+i,name:x[0],lat:x[1],lng:x[2],ty:x[3]}));
+function poiQuery(c,R){
+  const a='(around:'+R+','+c.lat.toFixed(5)+','+c.lng.toFixed(5)+')';
+  return '[out:json][timeout:20];('
+   +'nwr'+a+'["tourism"~"^(attraction|museum|gallery|viewpoint|zoo|theme_park|aquarium)$"]["name"];'
+   +'nwr'+a+'["historic"]["name"];'
+   +'nwr'+a+'["leisure"~"^(park|garden|playground|nature_reserve|stadium)$"]["name"];'
+   +'nwr'+a+'["amenity"~"^(place_of_worship|library|marketplace|theatre|arts_centre|fountain|community_centre)$"]["name"];'
+   +'nwr'+a+'["railway"="station"]["name"];'
+   +'nwr'+a+'["natural"~"^(beach|peak)$"]["name"];'
+   +'nwr'+a+'["man_made"="lighthouse"]["name"];'
+   +');out center 160;';
+}
+function tagType(t){
+  if(t.tourism==='museum'||t.tourism==='gallery') return '博物館／美術館';
+  if(t.tourism==='zoo'||t.tourism==='aquarium'||t.tourism==='theme_park') return '遊樂景點';
+  if(t.tourism==='viewpoint') return '觀景點';
+  if(t.tourism) return '景點';
+  if(t.historic) return '古蹟';
+  if(t.leisure==='park'||t.leisure==='garden'||t.leisure==='nature_reserve') return '公園';
+  if(t.leisure==='playground') return '遊戲場';
+  if(t.leisure==='stadium') return '運動場';
+  if(t.amenity==='place_of_worship') return (t.religion==='christian')?'教堂':'廟宇';
+  if(t.amenity==='library') return '圖書館';
+  if(t.amenity==='marketplace') return '市場';
+  if(t.amenity==='theatre'||t.amenity==='arts_centre') return '藝文場館';
+  if(t.amenity==='fountain') return '噴水池';
+  if(t.amenity==='community_centre') return '活動中心';
+  if(t.railway) return '車站';
+  if(t.natural==='beach') return '海灘';
+  if(t.natural==='peak') return '山頭';
+  if(t.man_made==='lighthouse') return '燈塔';
+  return '公共場所';
+}
+function parsePois(json){
+  const out=[];
+  for(const e of (json.elements||[])){
+    const tg=e.tags||{}, name=tg['name:zh-TW']||tg['name:zh']||tg.name;
+    if(!name) continue;
+    if(tg.access==='private'||tg.access==='no'||tg.access==='customers') continue;
+    const lat=(e.lat!==undefined)?e.lat:(e.center&&e.center.lat), lng=(e.lon!==undefined)?e.lon:(e.center&&e.center.lon);
+    if(typeof lat!=='number'||typeof lng!=='number') continue;
+    if(out.some(p=>p.name===name&&hav(p,{lat,lng})<250)) continue;
+    out.push({id:e.type[0]+e.id,name:String(name).slice(0,30),lat,lng,ty:tagType(tg)});
+  }
+  return out;
+}
+async function postOverpass(url,body,ms){
+  const ctl=new AbortController(), tm=setTimeout(()=>ctl.abort(),ms);
+  try{
+    const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(body),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctl.signal});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.json();
+  } finally { clearTimeout(tm); }
+}
+async function loadPois(c){
+  const key=cellKey(c.lat,c.lng), now=Date.now(), hit=poiCache[key];
+  if(hit&&now-hit.t<POI_TTL&&hit.p.length) return hit.p;
+  let err;
+  for(const ep of OVERPASS){
+    try{
+      const p=parsePois(await postOverpass(ep,poiQuery(c,2500),16000));
+      poiCache[key]={t:now,p:p.slice(0,220)};
+      const ks=Object.keys(poiCache); if(ks.length>8){ ks.sort((a,b)=>poiCache[a].t-poiCache[b].t); delete poiCache[ks[0]]; }
+      try{ localStorage.setItem(POI_KEY,JSON.stringify(poiCache)); }catch(e){}
+      return p;
+    }catch(e){ err=e; }
+  }
+  throw err||new Error('poi');
+}
+async function ensurePois(){
+  const c=real;
+  if(!c||poiLoading||Date.now()<poiRetryAt) return;
+  if(poiCenter&&hav(c,poiCenter)<700) return;
+  poiLoading=true;
+  try{
+    pois=await loadPois(c); poiCenter={lat:c.lat,lng:c.lng};
+    if(pois.length) status('附近找到 '+pois.length+' 個公共場所／景點'); else { status('這附近沒有找到景點，走到市區或公園附近試試'); poiRetryAt=Date.now()+60000; poiCenter=null; }
+  }catch(e){
+    const fb=FALLBACK_TPE.filter(p=>hav(c,p)<7000);
+    if(simMode&&fb.length){ pois=fb; poiCenter={lat:c.lat,lng:c.lng}; status('沒有網路，使用內建的台北景點試玩'); }
+    else { poiRetryAt=Date.now()+20000; status('正在連線找附近的景點…（需要網路）'); }
+  }
+  poiLoading=false; refreshTreasures();
+}
+function spawnTreasure(p){
   const tr=pickTreasure();
-  const mk=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="tre '+tr.k+' r'+tr.rar+'">'+art(tr.svg,44)+'</div>',iconSize:[58,58],iconAnchor:[29,29]}),interactive:false,zIndexOffset:200}).addTo(map);
-  treasures.push({lat,lng,mk,tr,bonus:tr.bonus});
+  const html='<div class="tre '+tr.k+' r'+tr.rar+'">'+art(tr.svg,44)+'</div><div class="trelab">'+esc(p.name)+'</div>';
+  const mk=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'treWrap',html,iconSize:[58,58],iconAnchor:[29,29]}),interactive:false,zIndexOffset:200}).addTo(map);
+  treasures.push({lat:p.lat,lng:p.lng,mk,tr,pts:tr.pts,poi:p});
 }
-function fillTreasures(){
+function refreshTreasures(){
   const c=real||player; if(!c) return;
-  for(let i=treasures.length-1;i>=0;i--){ if(hav(c,treasures[i])>800){ treasures[i].mk.remove(); treasures.splice(i,1); } }
-  while(treasures.length<6) spawnTreasure(c);
+  const now=Date.now(), V=S.visited||{};
+  treasures=treasures.filter(t=>{ if(hav(c,t)>3000){ t.mk.remove(); return false; } return true; });
+  const have=new Set(treasures.map(t=>t.poi.id));
+  const cand=pois.filter(p=>!have.has(p.id)&&!(V[p.id]&&now-V[p.id]<VISIT_COOLDOWN)&&hav(c,p)<=2000).sort((a,b)=>hav(c,a)-hav(c,b));
+  while(treasures.length<MAX_T&&cand.length) spawnTreasure(cand.shift());
+  updateNear();
 }
+function poiTick(){ ensurePois(); if(Date.now()-lastRef>5000){ lastRef=Date.now(); refreshTreasures(); } }
 function checkTreasures(){
   for(let i=treasures.length-1;i>=0;i--){
     const t=treasures[i];
-    if(hav(real,t)<=TRE_RADIUS){
-      t.mk.remove(); treasures.splice(i,1);
-      S.coll++; S.items=S.items||{}; S.items[t.tr.id]=(S.items[t.tr.id]||0)+1;
-      addProgress(t.bonus);
-      toast('撿到「'+t.tr.name+'」（'+RARITY[t.tr.rar].n+'）　獎章進度 +'+t.bonus+' 步'); vibrate(60);
-      if(t.tr.k==='toy') playToy(t.tr);
-      fillTreasures(); updateNear();
-    }
+    if(hav(real,t)>TRE_RADIUS) continue;
+    t.mk.remove(); treasures.splice(i,1);
+    S.visited=S.visited||{}; S.seen=S.seen||{};
+    S.visited[t.poi.id]=Date.now();
+    const first=!S.seen[t.poi.id]; let pts=t.pts;
+    if(first){ S.seen[t.poi.id]=t.poi.name; pts+=20; }
+    S.recent=(S.recent||[]).filter(n=>n!==t.poi.name); S.recent.unshift(t.poi.name); S.recent=S.recent.slice(0,8);
+    S.score=(S.score||0)+pts; S.coll++; S.items=S.items||{}; S.items[t.tr.id]=(S.items[t.tr.id]||0)+1;
+    toast('在「'+t.poi.name+'」撿到'+t.tr.name+'（'+RARITY[t.tr.rar].n+'）　+'+pts+' 分'+(first?'（首次造訪 +20）':''));
+    vibrate(60);
+    if(t.tr.k==='toy') playToy(t.tr);
+    refreshTreasures(); updateHud();
   }
 }
 
@@ -452,9 +556,9 @@ function updateHud(){
   $('vGoal').textContent=(S.goal||3000).toLocaleString();
   $('vPigs').textContent=S.miles||0;
   $('vStreak').textContent=curStreak();
-  $('vFlw').textContent=S.flowers.length;
+  $('vScore').textContent=(S.score||0).toLocaleString();
   const left=STEPS_PER_PIG-S.stepBank;
-  $('progTxt').textContent='再走 '+Math.ceil(left)+' 步，拿到下一枚獎章（撿寶物也算）';
+  $('progTxt').textContent='再走 '+Math.ceil(left)+' 步，拿到下一枚獎章';
   $('fill').style.width=(S.stepBank/STEPS_PER_PIG*100)+'%';
 }
 function addProgress(n){
@@ -482,7 +586,7 @@ function walked(d,lat,lng){
   while(S.flowDist>=FLOWER_EVERY){ S.flowDist-=FLOWER_EVERY; plantFlower(lat,lng); }
   const last=trail[trail.length-1], dd=hav(last,{lat,lng});
   if(dd>2){ trailC+=dd; trail.push({lat,lng,c:trailC}); if(trail.length>600) trail.splice(0,100); }
-  checkTreasures(); fillTreasures();
+  checkTreasures(); poiTick();
   updateHud(); save();
 }
 
@@ -504,7 +608,7 @@ function updateNear(){
   nearT=best;
   const brg=Math.atan2((best.lng-real.lng)*Math.cos(rad(real.lat)),best.lat-real.lat)*180/Math.PI; // 0=北，順時針
   $('nearIc').innerHTML=art(best.tr.svg,36);
-  $('nearTxt').textContent=best.tr.name+'（'+RARITY[best.tr.rar].n+'）　'+(bd<1000?Math.round(bd)+' 公尺':(bd/1000).toFixed(1)+' 公里')+'　+'+best.bonus+' 步';
+  $('nearTxt').textContent=best.poi.name+'（'+best.poi.ty+'）　'+(bd<1000?Math.round(bd)+' 公尺':(bd/1000).toFixed(1)+' 公里')+'　+'+best.pts+' 分';
   $('nearArrow').style.transform='rotate('+(brg-90)+'deg)';
   box.classList.remove('hidden');
 }
@@ -521,7 +625,9 @@ function renderDiary(){
   const c=(n,t)=>'<div class="c"><div class="n">'+n+'</div><div class="t">'+t+'</div></div>';
   $('diary').innerHTML=
     c(Math.floor(S.day).toLocaleString(),'今日步數')+c(Math.floor(S.total).toLocaleString(),'累計步數')+c(((S.dist||0)/1000).toFixed(1)+' km','累計距離')+
-    c(S.miles||0,ui('medal',20,'#f4a100')+' 獎章')+c(curStreak()+' 天',ui('flame',20,'#ff6b35')+' 連續達標')+c(S.flowers.length,ui('flower',20,'#EE8574')+' 花')+
+    c(S.miles||0,ui('medal',20,'#f4a100')+' 獎章')+c((S.score||0).toLocaleString(),ui('star',20,'#f4a100')+' 分數')+c(curStreak()+' 天',ui('flame',20,'#ff6b35')+' 連續達標')+
+    c(Object.keys(S.seen||{}).length,'造訪過的景點')+c(S.flowers.length,ui('flower',20,'#EE8574')+' 花')+c(S.coll||0,'撿過的寶物')+
+    ((S.recent&&S.recent.length)?'<div class="c wide"><div class="t">最近造訪</div><div class="n" style="font-size:15px;line-height:1.5">'+S.recent.map(esc).join('、')+'</div></div>':'')+
     '';
   $('collection').innerHTML=collHtml(FOODS,'食物圖鑑')+collHtml(TOYS,'玩具圖鑑')+'<div class="small" style="text-align:center">點圖示看名稱；邊框顏色：灰＝普通、綠＝少見、藍＝稀有、紫＝傳說</div>';
 }
@@ -575,7 +681,7 @@ function resetWorld(){
   followers.forEach(f=>f.mk.remove()); followers=[];
   treasures.forEach(t=>t.mk.remove()); treasures=[];
   flowerMks.forEach(m=>m.remove()); flowerMks=[];
-  player=null; real=null; trail=[]; trailC=0; nearT=null; $('near').classList.add('hidden');
+  player=null; real=null; trail=[]; trailC=0; nearT=null; poiCenter=null; poiRetryAt=0; pois=[]; $('near').classList.add('hidden');
 }
 function setSim(on){
   const was=simMode;
@@ -650,7 +756,7 @@ function frame(now){
   if(mv) pStill=0; else pStill+=dt;
   setLook(playerO,pStill>1.5?'lie':'cape',false);
   if(mv!==lastMoving){ lastMoving=mv; const el=playerMk.getElement&&playerMk.getElement(); if(el) el.classList.toggle('moving',mv); }
-  nearTick-=dt; if(nearTick<=0){ nearTick=1; updateNear(); }
+  nearTick-=dt; if(nearTick<=0){ nearTick=1; updateNear(); if(real) ensurePois(); }
   if(playMk){ if(Date.now()>playUntil){ playMk.remove(); playMk=null; } else playMk.setLatLng([player.lat+mLat(.8),player.lng+mLng(3.2,player.lat)]); }
   // 地圖跟隨
   if(follow){ centerT-=dt; if(mv||centerT<=0){ map.panTo([player.lat,player.lng],{animate:false}); centerT=.5; } }
