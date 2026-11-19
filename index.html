@@ -22,7 +22,15 @@
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:#6A4640;background:#dfeee0}
-  #map{position:fixed;inset:0;z-index:1}
+  #map{position:fixed;z-index:1;left:0;top:0;width:100vw;height:100vh;transform-origin:50% 50%;--cr:0deg}
+  #map .leaflet-marker-icon{rotate:var(--cr)}
+  #map .pigm{transform-origin:50% calc(100% - 4px)}
+  .leaflet-control-container{display:none}
+  #attr{position:fixed;z-index:400;left:50%;transform:translateX(-50%);bottom:calc(2px + env(safe-area-inset-bottom));font-size:10px;color:#555;background:rgba(255,255,255,.7);padding:0 6px;border-radius:6px;pointer-events:none;white-space:nowrap}
+  .beam{position:absolute;left:50%;bottom:-4px;width:130px;height:130px;margin-left:-65px;transform-origin:50% 100%;pointer-events:none;z-index:-1;opacity:0;transition:opacity .3s}
+  .beam.on{opacity:1}
+  .compassBtn{position:fixed;z-index:500;right:14px;bottom:calc(158px + env(safe-area-inset-bottom));width:56px;height:56px}
+  .compassBtn svg{transition:transform .2s}
   .leaflet-container{font-family:inherit}
   .pill{background:rgba(255,255,255,.93);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.18);white-space:nowrap}
   #top{position:fixed;z-index:500;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
@@ -312,7 +320,9 @@
   <div class="near hidden" id="near"><span id="nearIc"></span><span id="nearTxt"></span><span id="nearArrow"></span></div>
 </div></div>
 </div>
+<div id="attr"></div>
 <div id="status">我還在找你…</div>
+<button class="round compassBtn" id="bCompass" aria-label="羅盤"></button>
 <button class="round photoBtn" id="bPhoto" aria-label="跟我拍照"><span data-ui="camera" data-size="32" data-color="#1B8196"></span></button>
 <div id="dock">
   <button class="round" id="bLoc" aria-label="回到我"><span data-ui="pin" data-size="35" data-color="#1B8196"></span></button>
@@ -337,11 +347,19 @@
         <button class="btn alt" id="bMap"><span data-ui="map" data-size="22"></span>換地圖</button>
         <button class="btn alt" id="bMute"></button>
         <button class="btn alt" id="bSfx"></button>
+        <button class="btn alt" id="bSize"></button>
         <label class="btn alt" for="bgmFile"><span data-ui="music" data-size="22"></span>換音樂</label>
         <label class="btn alt" for="skinFile"><span data-ui="image" data-size="22"></span>換圖</label>
         <button class="btn alt hidden" id="bSkinOff"><span data-ui="undo" data-size="22"></span>還原圖</button>
         <button class="btn alt" id="bSim"><span data-ui="walk" data-size="22"></span>模擬走路</button>
       </div>
+      <div class="grid">
+        <button class="btn alt" id="bCalM">方向 −5°</button>
+        <button class="btn alt" id="bCalP">方向 +5°</button>
+        <button class="btn alt" id="bCalR" style="grid-column:1/-1">羅盤歸零</button>
+      </div>
+      <p class="small" style="text-align:center" id="calTxt"></p>
+      <p class="small" style="text-align:center">如果箭頭指的方向怪怪的：手機拿平，在空中畫幾個 8 字，再按地圖右下的羅盤鈕。離金屬或喇叭太近也會不準。</p>
       <div class="grid">
         <button class="btn alt" id="bExport"><span data-ui="save" data-size="22"></span>匯出存檔</button>
         <label class="btn alt" for="saveFile"><span data-ui="load" data-size="22"></span>匯入存檔</label>
@@ -605,7 +623,7 @@ function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show
 function status(t){ $('status').textContent=t; }
 
 /* ---------- 地圖 ---------- */
-const map=L.map('map',{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([25.0330,121.5654],17);
+const map=L.map('map',{zoomControl:false,attributionControl:false,zoomSnap:.5}).setView([25.0330,121.5654],17);
 // 地圖來源（都不需要 API key）。直接開本機檔案時 OSM 官方圖磚會被擋，所以預設用 Esri；放上網站後預設用 OSM。
 const TILES=[
   {name:'Esri 街道',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',o:{maxZoom:19,attribution:'Tiles © Esri'}},
@@ -618,15 +636,17 @@ function setTiles(i){
   tileIdx=i%TILES.length;
   if(tileLayer) map.removeLayer(tileLayer);
   tileLayer=L.tileLayer(TILES[tileIdx].url,TILES[tileIdx].o); tileLayer.addTo(map);
+  $('attr').textContent=(TILES[tileIdx].name.indexOf('OSM')===0?'© OpenStreetMap 貢獻者':'Tiles © Esri')+'　景點資料 © OpenStreetMap';
 }
 setTiles(tileIdx);
 let follow=true;
+const pigSz=()=>S.pigSz||64;
 map.on('dragstart',()=>{ follow=false; });
 
 /* ---------- 標記 ---------- */
 function pigIcon(size,me,pose){
   const src=S.skin||POSES[pose||'cape'];
-  return L.divIcon({className:'pigm'+(me?' me':''),html:'<div class="in"><img src="'+src+'">'+((me&&!S.skin)?accHtml(S.wear):'')+(me?'<div class="say'+(sayOn?' on':'')+'">'+esc(sayText)+'</div>':'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
+  return L.divIcon({className:'pigm'+(me?' me':''),html:(me?'<div class="beam"><svg viewBox="0 0 120 120" width="130" height="130"><defs><linearGradient id="bmg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2BA7C0" stop-opacity=".6"/><stop offset="1" stop-color="#2BA7C0" stop-opacity="0"/></linearGradient></defs><path d="M60 118L20 6Q60 -10 100 6z" fill="url(#bmg)"/></svg></div>':'')+'<div class="in"><img src="'+src+'">'+((me&&!S.skin)?accHtml(S.wear):'')+(me?'<div class="say'+(sayOn?' on':'')+'">'+esc(sayText)+'</div>':'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
 }
 function setLook(o,pose,flip){
   if(o.pose===pose&&o.flip===flip) return;
@@ -646,7 +666,7 @@ let moving=false;
 function initPlayer(lat,lng){
   real={lat,lng}; player={lat,lng}; lastT=Date.now();
   trail=[{lat,lng,c:0}]; trailC=0;
-  playerMk=L.marker([lat,lng],{icon:pigIcon(60,true,'cape'),interactive:false,zIndexOffset:1000}).addTo(map);
+  playerMk=L.marker([lat,lng],{icon:pigIcon(pigSz(),true,'cape'),interactive:false,zIndexOffset:1000}).addTo(map);
   playerO={mk:playerMk,pose:null,flip:false};
   syncFollowers();
   S.flowers.forEach(f=>addFlowerMk(f[0],f[1]));
@@ -664,11 +684,84 @@ function syncFollowers(){
   }
 }
 function refreshIcons(){
-  if(playerMk){ playerMk.setIcon(pigIcon(60,true,'cape')); playerO.pose=null; }
+  if(playerMk){ playerMk.setIcon(pigIcon(pigSz(),true,'cape')); playerO.pose=null; }
   followers.forEach(f=>{ f.mk.setIcon(pigIcon(40,false,'cape')); f.mv=null; f.pose=null; });
   lastMoving=null;
 }
 
+/* ---------- 方向：羅盤、跟著方向轉、校正 ---------- */
+const nd=a=>((a%360)+360)%360, angDiff=(a,b)=>{ let d=nd(a-b); return d>180?d-360:d; };
+let mapMode='north', compassRaw=null, compassAt=0, gpsHead=null, gpsHeadAt=0, headDeg=null, rotApplied=null, beamApplied=null, compassOn=false;
+if(S.hOff===undefined) S.hOff=0;
+function compassFrom(e){
+  if(typeof e.webkitCompassHeading==='number'&&!isNaN(e.webkitCompassHeading)) return e.webkitCompassHeading;
+  if(e.alpha==null) return null;
+  const r=Math.PI/180, x=(e.beta||0)*r, y=(e.gamma||0)*r, z=e.alpha*r;
+  const cY=Math.cos(y), cZ=Math.cos(z), sX=Math.sin(x), sY=Math.sin(y), sZ=Math.sin(z);
+  const Vx=-cZ*sY-sZ*sX*cY, Vy=-sZ*sY+cZ*sX*cY;
+  let h=Math.atan(Vx/Vy); if(Vy<0) h+=Math.PI; else if(Vx<0) h+=2*Math.PI;
+  return h/r;
+}
+function onOrient(e){
+  if(e.type==='deviceorientation'&&e.absolute===false&&typeof e.webkitCompassHeading!=='number') return;
+  const h=compassFrom(e); if(h==null||isNaN(h)) return;
+  compassRaw=h; compassAt=Date.now();
+}
+function startCompass(){
+  if(compassOn) return Promise.resolve(true);
+  const go=()=>{ compassOn=true; window.addEventListener('deviceorientationabsolute',onOrient,true); window.addEventListener('deviceorientation',onOrient,true); return true; };
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')
+      return DeviceOrientationEvent.requestPermission().then(r=>r==='granted'?go():false).catch(()=>false);
+  }catch(e){ return Promise.resolve(false); }
+  if(typeof DeviceOrientationEvent==='undefined') return Promise.resolve(false);
+  return Promise.resolve(go());
+}
+function updHeading(){
+  const now=Date.now(); let tgt=null;
+  if(compassRaw!=null&&now-compassAt<2500) tgt=nd(compassRaw+(S.hOff||0));
+  else if(gpsHead!=null&&now-gpsHeadAt<6000) tgt=gpsHead;
+  if(tgt==null){ if(beamApplied!==null){ beamApplied=null; const el=playerMk&&playerMk.getElement&&playerMk.getElement(); const b=el&&el.querySelector&&el.querySelector('.beam'); if(b) b.classList.remove('on'); } return; }
+  headDeg=(headDeg==null)?tgt:nd(headDeg+angDiff(tgt,headDeg)*.18);
+}
+function applyRot(){
+  const rotOn=mapMode==='head'&&follow&&!simMode&&headDeg!=null;
+  const mapRot=rotOn?-headDeg:0;
+  if(rotApplied===null||Math.abs(angDiff(mapRot,rotApplied))>.8){
+    rotApplied=mapRot; const m=$('map'); m.style.transform='rotate('+mapRot.toFixed(1)+'deg)'; m.style.setProperty('--cr',(-mapRot).toFixed(1)+'deg');
+    const nb=$('bCompass').querySelector('svg'); if(nb) nb.style.transform='rotate('+mapRot.toFixed(1)+'deg)';
+  }
+  if(headDeg!=null){
+    const loc=nd(headDeg+mapRot);
+    if(beamApplied===null||Math.abs(angDiff(loc,beamApplied))>1.5){
+      beamApplied=loc; const el=playerMk&&playerMk.getElement&&playerMk.getElement(); const b=el&&el.querySelector&&el.querySelector('.beam');
+      if(b){ b.style.transform='rotate('+loc.toFixed(1)+'deg)'; b.classList.add('on'); }
+    }
+  }
+}
+function compassBtn(){
+  const on=mapMode==='head';
+  $('bCompass').innerHTML='<svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="17" fill="'+(on?'#2BA7C0':'#fff')+'" stroke="#2BA7C0" stroke-width="2.500"/><path d="M20 6l6 14H14z" fill="#E85D4E"/><path d="M20 34l-6-14h12z" fill="'+(on?'#fff':'#9aa7ad')+'"/><circle cx="20" cy="20" r="2.200" fill="#fff" stroke="#6A4640" stroke-width="1"/></svg>';
+  rotApplied=null;
+}
+function fitMap(){
+  const w=innerWidth, h=innerHeight, sz=Math.ceil(Math.hypot(w,h)*1.04), m=$('map');
+  m.style.width=sz+'px'; m.style.height=sz+'px'; m.style.left=((w-sz)/2)+'px'; m.style.top=((h-sz)/2)+'px';
+  try{ map.invalidateSize(); }catch(e){}
+}
+function calTxt(){ const o=Math.round(S.hOff||0); $('calTxt').textContent='羅盤校正：'+(o>0?'+':'')+o+'°　（走路時我會自動修正）'; }
+$('bCompass').addEventListener('click',async()=>{
+  if(mapMode==='north'){
+    const ok=await startCompass();
+    if(!ok&&gpsHead==null){ toast('這支手機的羅盤沒有開啟，我會改用走路的方向轉'); }
+    mapMode='head'; follow=true; toast('地圖會跟著我面對的方向轉囉'); if(player) map.panTo([player.lat,player.lng],{animate:false});
+  } else { mapMode='north'; toast('地圖固定北方朝上'); }
+  compassBtn(); applyRot();
+});
+$('bCalM').addEventListener('click',()=>{ S.hOff=(S.hOff||0)-5; save(true); calTxt(); });
+$('bCalP').addEventListener('click',()=>{ S.hOff=(S.hOff||0)+5; save(true); calTxt(); });
+$('bCalR').addEventListener('click',()=>{ S.hOff=0; save(true); calTxt(); toast('羅盤校正歸零了'); });
+addEventListener('resize',fitMap); fitMap(); compassBtn(); calTxt();
 /* ---------- 花 ---------- */
 function addFlowerMk(lat,lng){
   const mk=L.marker([lat,lng],{icon:L.divIcon({className:'flw',html:flowerSvg(FLOWER_COLORS[Math.abs(Math.floor(lat*1e5+lng*1e5))%FLOWER_COLORS.length],26),iconSize:[26,26],iconAnchor:[13,13]}),interactive:false,zIndexOffset:-100}).addTo(map);
@@ -1419,6 +1512,7 @@ function handleMove(lat,lng,t,acc,isSim){
     if(d<jit) return;
   }
   const dt=Math.max(.5,(t-lastT)/1000), v=d/dt;
+  if(isSim&&d>.5){ gpsHead=nd(Math.atan2((lng-real.lng)*Math.cos(rad(real.lat)),lat-real.lat)*180/Math.PI); gpsHeadAt=Date.now(); }
   real={lat,lng}; lastT=t;
   if(!walking){ poiTick(); return; }
   if(isSim || v<4.2) walked(d,lat,lng);
@@ -1433,6 +1527,10 @@ function startGPS(){
   watchId=navigator.geolocation.watchPosition(p=>{
     if(simMode) return;
     const c=p.coords; status('定位大概準到 ±'+Math.round(c.accuracy)+' 公尺');
+    if(c.heading!=null&&!isNaN(c.heading)&&c.speed>1){
+      gpsHead=nd(c.heading); gpsHeadAt=Date.now();
+      if(compassRaw!=null&&Date.now()-compassAt<2500&&c.speed>1.2&&c.accuracy<30){ const want=angDiff(gpsHead,compassRaw); S.hOff=(S.hOff||0)+angDiff(want,S.hOff||0)*.12; if(S.hOff>180||S.hOff<-180) S.hOff=angDiff(S.hOff,0); calTxt(); }
+    }
     if(c.accuracy>70 && real) return;
     handleMove(c.latitude,c.longitude,p.timestamp||Date.now(),c.accuracy,false);
   },err=>{
@@ -1534,6 +1632,7 @@ function frame(now){
   setLook(playerO,pStill>1.5?'lie':'cape',false);
   if(mv!==lastMoving){ lastMoving=mv; const el=playerMk.getElement&&playerMk.getElement(); if(el) el.classList.toggle('moving',mv); }
   if(walking&&pStill>25&&Date.now()-lastSay>40000){ say(pickL(TK.idle)); }
+  updHeading(); applyRot();
   nearTick-=dt; if(nearTick<=0){ nearTick=1; ambientTalk(); updateNear(); if(real) ensurePois(); }
   if(playMk){ if(Date.now()>playUntil){ playMk.remove(); playMk=null; } else playMk.setLatLng([player.lat+mLat(.8),player.lng+mLng(3.2,player.lat)]); }
   // 地圖跟隨
@@ -1578,6 +1677,10 @@ $('bgmFile').addEventListener('change',e=>{
   const f=e.target.files&&e.target.files[0]; if(!f) return;
   loadBgm(f); idbSet('bgm',f); bgmOn=true; muteBtn(); playBgm(); toast('音樂換好囉～'); e.target.value='';
 });
+const SZ=[[48,'小'],[64,'中'],[80,'大']];
+function sizeBtn(){ const c=SZ.find(x=>x[0]===pigSz())||SZ[1]; $('bSize').textContent='LuLu 大小：'+c[1]; }
+$('bSize').addEventListener('click',()=>{ const i=SZ.findIndex(x=>x[0]===pigSz()); S.pigSz=SZ[(i+1)%SZ.length][0]; save(true); sizeBtn(); refreshIcons(); });
+sizeBtn();
 $('bSfx').addEventListener('click',()=>{ sfxOn=!sfxOn; try{ localStorage.setItem('luluwalk.sfx',sfxOn?'1':'0'); }catch(e){} sfxBtn(); if(sfxOn) sfx('pick'); });
 sfxBtn();
 $('bMute').addEventListener('click',()=>{ bgmOn=!bgmOn; muteBtn(); if(bgmOn) playBgm(); else bgm.pause(); });
