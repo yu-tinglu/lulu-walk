@@ -22,7 +22,9 @@
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:#6A4640;background:#dfeee0}
-  #map{position:fixed;z-index:1;left:0;top:0;width:100vw;height:100vh;transform-origin:50% 50%;--cr:0deg}
+  #mapWrap{position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1;contain:paint}
+  html,body{overscroll-behavior:none;touch-action:manipulation}
+  #map{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 50%;--cr:0deg}
   #map .leaflet-marker-icon{rotate:var(--cr)}
   #map .pigm{transform-origin:50% calc(100% - 4px)}
   .leaflet-control-container{display:none}
@@ -269,6 +271,10 @@
   .photoBtn{position:fixed;z-index:500;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));width:56px;height:56px}
   .poiPin i{display:block;width:14px;height:14px;border-radius:50%;background:rgba(43,167,192,.55);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
   .poiPin.cool i{background:rgba(160,160,160,.45)}
+  #dock{bottom:calc(24px + env(safe-area-inset-bottom))}
+  #status{bottom:calc(98px + env(safe-area-inset-bottom))}
+  .photoBtn{bottom:calc(104px + env(safe-area-inset-bottom))}
+  .compassBtn{bottom:calc(170px + env(safe-area-inset-bottom))}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -303,7 +309,7 @@
 </style>
 </head>
 <body>
-<div id="map"></div>
+<div id="mapWrap"><div id="map"></div></div>
 <div id="hud">
 <div id="top">
   <div class="pill p-steps"><span data-ui="step" data-size="22" data-color="#5b8def"></span> <b id="vSteps">0</b><span class="dim">/<span id="vGoal">3000</span></span></div>
@@ -745,7 +751,7 @@ function compassBtn(){
   rotApplied=null;
 }
 function fitMap(){
-  const w=innerWidth, h=innerHeight, sz=Math.ceil(Math.hypot(w,h)*1.04), m=$('map');
+  const wr=$('mapWrap'), w=wr.clientWidth||innerWidth, h=wr.clientHeight||innerHeight, sz=Math.ceil(Math.hypot(w,h)*1.04), m=$('map');
   m.style.width=sz+'px'; m.style.height=sz+'px'; m.style.left=((w-sz)/2)+'px'; m.style.top=((h-sz)/2)+'px';
   try{ map.invalidateSize(); }catch(e){}
 }
