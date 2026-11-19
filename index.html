@@ -1563,9 +1563,14 @@ function startGPS(){
   if(!navigator.geolocation){ status('這個瀏覽器不能定位，我找不到你…'); return; }
   status('我在找你在哪裡…');
   if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  // 先用上次的位置把地圖鋪好，圖磚就會在等定位時載入
+  try{ const l=JSON.parse(localStorage.getItem('luluwalk.last')||'null'); if(l&&!player) map.setView([l.lat,l.lng],17,{animate:false}); }catch(e){}
+  // 先要一個粗略位置（用基地台/Wi-Fi，通常不到 1 秒），精準的 GPS 再接手
+  navigator.geolocation.getCurrentPosition(p=>{ if(!simMode&&!real){ status('先抓到大概的位置了，我再找準一點…'); handleMove(p.coords.latitude,p.coords.longitude,p.timestamp||Date.now(),p.coords.accuracy,false); } },()=>{},{enableHighAccuracy:false,maximumAge:600000,timeout:8000});
   watchId=navigator.geolocation.watchPosition(p=>{
     if(simMode) return;
-    const c=p.coords; status('定位大概準到 ±'+Math.round(c.accuracy)+' 公尺');
+    const c=p.coords;
+    try{ if(c.accuracy<200) localStorage.setItem('luluwalk.last',JSON.stringify({lat:c.latitude,lng:c.longitude})); }catch(e){} status('定位大概準到 ±'+Math.round(c.accuracy)+' 公尺');
     if(c.heading!=null&&!isNaN(c.heading)&&c.speed>1){
       gpsHead=nd(c.heading); gpsHeadAt=Date.now();
       if(compassRaw!=null&&Date.now()-compassAt<2500&&c.speed>1.2&&c.accuracy<30){ const want=angDiff(gpsHead,compassRaw); S.hOff=(S.hOff||0)+angDiff(want,S.hOff||0)*.12; if(S.hOff>180||S.hOff<-180) S.hOff=angDiff(S.hOff,0); calTxt(); }
