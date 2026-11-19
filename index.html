@@ -1765,6 +1765,13 @@ $('bMap').addEventListener('click',()=>{ setTiles(tileIdx+1); toast('換成這�
 $('goGps').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); startGPS(); playBgm(); });
 $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); setSim(true); playBgm(); });
 addEventListener('pagehide',()=>save(true));
+// 防止整個頁面被雙指縮放／雙擊放大（地圖本身的縮放不受影響）
+['gesturestart','gesturechange','gestureend'].forEach(n=>document.addEventListener(n,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchmove',e=>{ if(e.touches&&e.touches.length>1&&!(e.target.closest&&e.target.closest('#mapWrap'))) e.preventDefault(); },{passive:false});
+let lastTap=0; document.addEventListener('touchend',e=>{ const n=Date.now(); if(n-lastTap<350&&!(e.target.closest&&e.target.closest('#mapWrap'))) e.preventDefault(); lastTap=n; },{passive:false});
+function resetViewZoom(){ try{ const vv=window.visualViewport; if(vv&&vv.scale>1.01){ const m=document.querySelector('meta[name=viewport]'); const c=m.content; m.content='width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover'; setTimeout(()=>{ m.content=c; },300); } }catch(e){} }
+if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ resetViewZoom(); fitMap(); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ resetViewZoom(); fitMap(); } });
 try{ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){}
 document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('button,.tab,.ci')) sfx('tap'); },true);
 walkBtn(); updateHud();
