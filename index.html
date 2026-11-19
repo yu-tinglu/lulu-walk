@@ -132,7 +132,7 @@
   .sheet .grid .btn{font-size:16px;padding:14px 8px}
   .coll-h{font-size:15px}
   .ci .cnt{min-width:19px;height:19px;font-size:11px}
-  .pigm.me::after{width:116px;height:38px;margin-left:-58px}
+  .pigm.me::after{width:80px;height:26px;margin-left:-40px}
   .tre{width:58px;height:58px}
   .tre.toy{border-radius:18px}
   .pigm .zz{top:-14px;right:-10px}
@@ -646,7 +646,7 @@ let moving=false;
 function initPlayer(lat,lng){
   real={lat,lng}; player={lat,lng}; lastT=Date.now();
   trail=[{lat,lng,c:0}]; trailC=0;
-  playerMk=L.marker([lat,lng],{icon:pigIcon(88,true,'cape'),interactive:false,zIndexOffset:1000}).addTo(map);
+  playerMk=L.marker([lat,lng],{icon:pigIcon(60,true,'cape'),interactive:false,zIndexOffset:1000}).addTo(map);
   playerO={mk:playerMk,pose:null,flip:false};
   syncFollowers();
   S.flowers.forEach(f=>addFlowerMk(f[0],f[1]));
@@ -664,7 +664,7 @@ function syncFollowers(){
   }
 }
 function refreshIcons(){
-  if(playerMk){ playerMk.setIcon(pigIcon(88,true,'cape')); playerO.pose=null; }
+  if(playerMk){ playerMk.setIcon(pigIcon(60,true,'cape')); playerO.pose=null; }
   followers.forEach(f=>{ f.mk.setIcon(pigIcon(40,false,'cape')); f.mv=null; f.pose=null; });
   lastMoving=null;
 }
@@ -1192,7 +1192,7 @@ let playMk=null, playUntil=0;
 function playToy(tr){
   if(!player) return;
   if(playMk){ playMk.remove(); playMk=null; }
-  playMk=L.marker([player.lat,player.lng],{icon:L.divIcon({className:'',html:'<div class="toyplay">'+art(tr.svg,52)+'</div>',iconSize:[56,56],iconAnchor:[28,52]}),interactive:false,zIndexOffset:900}).addTo(map);
+  playMk=L.marker([player.lat,player.lng],{icon:L.divIcon({className:'',html:'<div class="toyplay">'+art(tr.svg,40)+'</div>',iconSize:[44,44],iconAnchor:[22,40]}),interactive:false,zIndexOffset:900}).addTo(map);
   playUntil=Date.now()+14000;
 }
 
