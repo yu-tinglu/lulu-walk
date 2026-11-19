@@ -25,8 +25,8 @@
   #mapWrap{position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1;contain:paint}
   html,body{overscroll-behavior:none;touch-action:manipulation}
   #map{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 50%;--cr:0deg}
-  #map .leaflet-marker-icon{rotate:var(--cr)}
-  #map .pigm{transform-origin:50% calc(100% - 4px)}
+  #map .leaflet-marker-icon>*:not(.beam){rotate:var(--cr)}
+  #map .pigm>.in{transform-origin:50% calc(100% - 4px)}
   .leaflet-control-container{display:none}
   #attr{position:fixed;z-index:400;left:50%;transform:translateX(-50%);bottom:calc(2px + env(safe-area-inset-bottom));font-size:10px;color:#555;background:rgba(255,255,255,.7);padding:0 6px;border-radius:6px;pointer-events:none;white-space:nowrap}
   .beam{position:absolute;left:50%;bottom:-4px;width:130px;height:130px;margin-left:-65px;transform-origin:50% 100%;pointer-events:none;z-index:-1;opacity:0;transition:opacity .3s}
@@ -747,7 +747,7 @@ function applyRot(){
     const nb=$('bCompass').querySelector('svg'); if(nb) nb.style.transform='rotate('+mapRot.toFixed(1)+'deg)';
   }
   if(headDeg!=null){
-    const loc=nd(headDeg+mapRot);
+    const loc=nd(headDeg);
     if(beamApplied===null||Math.abs(angDiff(loc,beamApplied))>1.5){
       beamApplied=loc; const el=playerMk&&playerMk.getElement&&playerMk.getElement(); const b=el&&el.querySelector&&el.querySelector('.beam');
       if(b){ b.style.transform='rotate('+loc.toFixed(1)+'deg)'; b.classList.add('on'); }
