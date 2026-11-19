@@ -205,6 +205,18 @@
   .achr .anm{flex:1;font-size:15px;line-height:1.4}.achr .anm small{display:block;color:#9A7A72;font-size:12px}
   .achr .apt{font-size:13px;font-weight:800;color:#1B8196;white-space:nowrap}
   .achr.ok .apt{color:#6bb36b}.achr:not(.ok) .anm b{opacity:.75}
+  .say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:16px;background:#fff;color:#6A4640;border:2px solid #F0CFC6;border-radius:14px;padding:6px 10px;font-size:14px;font-weight:700;width:max-content;max-width:190px;line-height:1.4;text-align:left;opacity:0;transition:opacity .25s;pointer-events:none;z-index:5;filter:none}
+  .say.on{opacity:1}
+  .say::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+  .chat{background:#FFF8F5;border-radius:14px;padding:10px;min-height:130px;max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+  .chat .cl{display:flex;align-items:flex-end;gap:6px}
+  .chat .cl img{width:38px;height:38px;object-fit:contain;flex:none}
+  .chat .cl span{background:#fff;border:2px solid #F0CFC6;border-radius:14px 14px 14px 4px;padding:7px 11px;font-size:15px;line-height:1.5;max-width:78%}
+  .chat .cu{display:flex;justify-content:flex-end}
+  .chat .cu span{background:#2BA7C0;color:#fff;border-radius:14px 14px 4px 14px;padding:7px 11px;font-size:15px;font-weight:700}
+  .chatBtns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 8px}
+  .chatBtns button{border:0;background:#E4F1F6;color:#1B8196;border-radius:12px;padding:10px 2px;font-weight:800;font-size:14px;font-family:inherit;cursor:pointer}
+  .chatBtns button:active{transform:scale(.96)}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -545,7 +557,7 @@ map.on('dragstart',()=>{ follow=false; });
 /* ---------- 標記 ---------- */
 function pigIcon(size,me,pose){
   const src=S.skin||POSES[pose||'cape'];
-  return L.divIcon({className:'pigm'+(me?' me':''),html:'<div class="in"><img src="'+src+'">'+((me&&!S.skin)?accHtml(S.wear):'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
+  return L.divIcon({className:'pigm'+(me?' me':''),html:'<div class="in"><img src="'+src+'">'+((me&&!S.skin)?accHtml(S.wear):'')+(me?'<div class="say'+(sayOn?' on':'')+'">'+esc(sayText)+'</div>':'')+'<span class="zz">'+ui('zzz',24,'#5a7fd6')+'</span></div>',iconSize:[size,size],iconAnchor:[size/2,size-4]});
 }
 function setLook(o,pose,flip){
   if(o.pose===pose&&o.flip===flip) return;
@@ -740,8 +752,113 @@ function questAdd(t,n){
     if(q.got>=q.need){ q.done=true; addScore(q.pts); msg.push('任務完成：'+questText(q)+'　+'+q.pts+' 分'); }
   });
   if(!S.q.bonus&&S.q.list.every(q=>q.done)){ S.q.bonus=true; S.qDays++; addScore(100); msg.push('今日任務全部完成！額外 +100 分'); }
-  if(msg.length){ setTimeout(()=>{ toast(msg.join('\n')); vibrate([40,40,80]); updateHud(); },1500); }
+  if(msg.length){ say(pickL(TK.quest),true); setTimeout(()=>{ toast(msg.join('\n')); vibrate([40,40,80]); updateHud(); },1500); }
   updateHud();
+}
+/* ---------- 跟 LuLu 對話 ---------- */
+const TK={
+ start:{morning:['早安！今天的空氣聞起來很棒','早起散步，好精神！','出發出發，邊走邊找早餐'],noon:['中午出門，要不要順便找點吃的？','太陽好大，我們走樹蔭下','肚子有點餓，但先走一走'],afternoon:['下午散步最悠閒了','走吧，我想去看看新的地方','慢慢走，不趕時間'],evening:['傍晚的風好舒服','天色漸漸暗了，我們走近一點的路','晚上出門，有點興奮'],night:['這麼晚了還出門…我陪你','夜晚好安靜，我跟緊你','晚上走路也很好玩'] },
+ end:{short:['這麼快就結束了嗎…','下次走久一點好不好','熱身而已嘛'],mid:['今天走得剛剛好！','腳有點痠，但很開心','回去要記得喝水喔'],long:['哇，走了好遠！我要睡著了…','今天是一場大冒險！','我的腳掌都熱熱的了']},
+ poi:{
+  temple:['這裡好安靜，要輕輕地走','香香的，心也靜下來了','我們小聲一點喔'],
+  market:['好香！我的鼻子在跳舞','人好多，不要走丟喔','每一攤我都想吃'],
+  station:['火車的聲音！好想坐坐看','這裡每個人都在趕路呢','去哪裡都可以的感覺，好棒'],
+  park:['草地好舒服，想躺下來','這裡很適合玩耍！','深呼吸～這裡的空氣好好'],
+  view:['哇，視野好好！','從這裡看出去，什麼煩惱都小小的','要不要在這裡拍張照？'],
+  museum:['這裡好多我看不懂的東西','小聲小聲，這裡很安靜','我們也變聰明了一點點嗎？'],
+  sight:['這個地方好特別','來過了就是我們的回憶了','我要把這裡記進日記裡'],
+  def:['這裡我喜歡','原來這裡有這個地方','發現新地方了！']
+ },
+ rare:['哇！這個超稀有的啦！','運氣爆棚！','我的心跳好快！','今天一定是幸運日'],
+ food:['聞起來好好吃','收進背包，等一下餵我吧','嘿嘿，今天有口福了'],
+ toy:['這個看起來好好玩！','等一下陪我玩好不好','收下收下！'],
+ eat:['好好吃！','嗯嗯嗯～','再來一口！','肚子暖暖的','謝謝你，最喜歡你了'],
+ eatBy:{cake:'草莓蛋糕！我的最愛！',bubbletea:'珍珠一顆一顆，好好玩','lurou':'滷肉飯，這是幸福的味道',pineapplecake:'鳳梨酥，酸酸甜甜的',ramen:'呼嚕呼嚕～吃麵的聲音',popsicle:'冰冰涼涼，頭好痛！但好好吃',burger:'一大口！',honey:'甜甜的，黏黏的',donut:'甜甜圈，圓圓的好可愛'},
+ play:['太好玩了！','再玩一次！','嘿咻！','我們一起玩最開心','哈哈哈，停不下來'],
+ hungry:['肚子咕嚕咕嚕…','好想吃東西喔','背包裡有好吃的嗎…','我快沒力氣走了'],
+ bored:['有點無聊…陪我玩一下好不好','好想玩玩具喔','我們來玩一下嘛','心情有點悶悶的'],
+ idle:['我們休息一下吧…呼嚕嚕','腳好痠，躺一下下','你在看什麼呀？','站著不動，我要睡著了'],
+ amb:['左腳右腳，左腳右腳～','看，那邊有隻小鳥','你的影子跟我的影子在賽跑','我數了數，今天的雲有七朵','走路的時候，風會幫我們加油','聽，是不是有人在煮飯','前面轉角會有什麼呢？','跟你一起走路，腳步變得輕輕的','我喜歡我們一起慢慢走','路邊的小花在跟我們打招呼','偷偷告訴你，我有點喜歡散步'],
+ night:['晚上走路，影子變得好長','路燈好像小小的月亮','夜風涼涼的，要不要加件衣服？'],
+ level:['我長大了一點點！','升級了！好有力氣！','哇，我感覺變厲害了'],
+ goal:['達成目標！你好棒！','今天的目標完成了，我們好厲害','耶！今天的步數滿了！'],
+ quest:['任務完成！','我們做到了！','又完成一個，真有效率'],
+ wear:['好看嗎？好看嗎？','哇，我變成別的豬了','戴上之後，走路都有自信了','謝謝你，我超喜歡'],
+ petLim:['今天摸夠了啦，我要害羞了','頭髮會亂掉的…明天再摸','嘿嘿，今天已經好幸福了'],
+ pet:['嘿嘿，好舒服','再摸一下下','呼嚕呼嚕～','你的手暖暖的','最喜歡你了'],
+ cheer:['你已經很棒了，慢慢來','今天累的話就休息，我陪你','每走一步，都比昨天多一點','我會一直跟著你的','走不動就停下來，我們吃點東西','你笑起來的時候，我也變開心'],
+ sing:['啦啦啦～噗噗噗～','嗯嗯～嗯～（哼歌中）','豬豬豬～走走走～','噗嚕噗嚕～啦啦～'],
+ fact:['豬其實很愛乾淨，牠們會把睡覺和上廁所的地方分開','豬的嗅覺非常靈敏，連土裡的東西都聞得到','走路可以讓心情變好，這是真的喔','每天走一點點，一個月後就會變得不一樣','走路的時候看遠方，眼睛也會比較舒服','小睡一下也是很重要的工作','深呼吸三次，煩惱就會飛走一半','喝水很重要，出門記得帶水']
+};
+const pickL=a=>a[Math.floor(Math.random()*a.length)];
+function tod(){ const h=new Date().getHours(); return h>=5&&h<11?'morning':h<14&&h>=11?'noon':h>=14&&h<18?'afternoon':h>=18&&h<22?'evening':'night'; }
+function poiGroup(ty){ const m={'廟宇':'temple','教堂':'temple','市場':'market','車站':'station','公園':'park','遊戲場':'park','運動場':'park','噴水池':'park','海灘':'view','燈塔':'view','山頭':'view','觀景點':'view','博物館／美術館':'museum','藝文場館':'museum','圖書館':'museum','活動中心':'museum','古蹟':'sight','景點':'sight','遊樂景點':'sight','紀念館':'sight'}; return m[ty]||'def'; }
+let chatLog=[], sayTimer=0, sayText='', sayOn=false, lastSay=0, nextAmb=Date.now()+60000;
+function setBubble(){
+  const el=playerMk&&playerMk.getElement&&playerMk.getElement(); if(!el||!el.querySelector) return;
+  const b=el.querySelector('.say'); if(b){ b.textContent=sayText; b.classList.toggle('on',sayOn); }
+}
+function say(text,force){
+  const n=Date.now();
+  chatLog.push({who:'l',t:text}); if(chatLog.length>40) chatLog.shift();
+  if(!force&&n-lastSay<12000) return;
+  lastSay=n; sayText=text; sayOn=true; setBubble();
+  clearTimeout(sayTimer); sayTimer=setTimeout(()=>{ sayOn=false; setBubble(); },5500);
+}
+function onTreasureTalk(t){
+  const rare=t.tr.rar>=2&&Math.random()<.6;
+  say(rare?pickL(TK.rare):Math.random()<.65?pickL(TK.poi[poiGroup(t.poi.ty)]):pickL(TK[t.tr.k]),true);
+}
+function ambientTalk(){
+  const n=Date.now(); if(!walking||n<nextAmb) return; nextAmb=n+70000+Math.random()*60000;
+  let line;
+  if(S.hunger<40&&Math.random()<.7) line=pickL(TK.hungry);
+  else if(S.mood<40&&Math.random()<.7) line=pickL(TK.bored);
+  else if(tod()==='night'&&Math.random()<.4) line=pickL(TK.night);
+  else line=pickL(TK.amb);
+  say(line);
+}
+function chatReply(k){
+  const bagFoods=ALL_ITEMS.filter(x=>x.k==='food'&&(S.items[x.id]||0)>0);
+  const name=(S.wear&&S.wear.head&&ACC_BY[S.wear.head])?ACC_BY[S.wear.head].n:null;
+  switch(k){
+   case 'pet': {
+     S.pet=(S.pet&&S.pet.key===S.dayKey)?S.pet:{key:S.dayKey,n:0};
+     if(S.pet.n>=5) return pickL(TK.petLim);
+     S.pet.n++; S.mood=Math.min(100,S.mood+2); updateHud(); save();
+     return pickL(TK.pet)+(name&&Math.random()<.4?'（戴著'+name+'被摸頭，好隆重）':'');
+   }
+   case 'how': {
+     const g=S.goal||3000, st=Math.floor(S.day);
+     let r=st>=g?'今天已經走了 '+st.toLocaleString()+' 步，目標達成了，超棒的！':st>0?'今天走了 '+st.toLocaleString()+' 步，離目標還差 '+(g-st).toLocaleString()+' 步，慢慢來':'今天還沒開始走呢，要不要出門逛逛？';
+     if(S.mood<40) r+='　我有點悶悶的，陪我玩一下吧';
+     return r;
+   }
+   case 'hungry': {
+     if(S.hunger>=70) return '我吃得飽飽的，現在只想走路';
+     if(S.hunger>=40) return '還可以，不過有點心的話我不會拒絕';
+     return bagFoods.length?'好餓…背包裡的'+pickL(bagFoods).n+'看起來好好吃（到背包餵我吧）':'好餓…可是背包裡沒東西了，我們去公園或市場找找吧';
+   }
+   case 'where': {
+     if(real&&treasures.length){ let b=null,bd=1e12; for(const t of treasures){ const d=hav(real,t); if(d<bd){bd=d;b=t;} }
+       return '「'+b.poi.name+'」離我們'+(bd<1000?Math.round(bd)+' 公尺':(bd/1000).toFixed(1)+' 公里')+'，那裡有寶物喔，要去嗎？'; }
+     return '我們隨便走走吧！走到公園、廟宇或博物館這些地方，寶物就會冒出來';
+   }
+   case 'fact': return pickL(TK.fact);
+   case 'cheer': return pickL(TK.cheer);
+   case 'sing': return pickL(TK.sing);
+   case 'greet': { const m={morning:'早安！今天也要一起走路喔',noon:'午安！吃飯了嗎？',afternoon:'下午好～要不要來點點心？',evening:'晚上好，今天辛苦了',night:'這麼晚啦，早點休息，晚安'}; return m[tod()]; }
+  }
+  return '噗？';
+}
+const CHAT_BTNS=[['pet','摸摸頭'],['how','今天怎麼樣'],['hungry','你餓不餓'],['where','去哪裡走走'],['fact','說個小知識'],['cheer','給我打氣'],['sing','唱首歌'],['greet','打招呼']];
+function renderChat(){
+  const log=chatLog.slice(-10);
+  let h='';
+  h+='<div class="chatBtns">'+CHAT_BTNS.map(b=>'<button data-act="chat" data-id="'+b[0]+'">'+b[1]+'</button>').join('')+'</div>';
+  h+='<div class="chat" id="chatBox">'+(log.length?log.map(m=>m.who==='l'?'<div class="cl"><img src="'+(S.skin||POSES.cape)+'"><span>'+esc(m.t)+'</span></div>':'<div class="cu"><span>'+esc(m.t)+'</span></div>').join(''):'<div class="small" style="text-align:center;padding:14px">點下面的按鈕，跟 LuLu 說說話吧</div>')+'</div>';
+  h+='<div class="small" style="text-align:center;margin-top:6px">散步時 LuLu 也會自己說話，講過的話都會留在這裡。每天可以摸頭 5 次（心情 +2）</div>';
+  return h;
 }
 /* ---------- 成就 ---------- */
 const nFound=()=>ALL_ITEMS.filter(x=>(S.found||{})[x.id]>0).length;
@@ -806,6 +923,7 @@ function expNeed(l){ return 40+30*(l-1); }
 function addExp(n){
   S.exp=(S.exp||0)+n; let up=0;
   while(S.exp>=expNeed(S.lvl||1)){ S.exp-=expNeed(S.lvl); S.lvl++; up++; }
+  if(up) say(pickL(TK.level),true);
   if(up){ setTimeout(()=>toast('LuLu 升到 Lv.'+S.lvl+'！'+(ACCS.some(a=>a.lv===S.lvl)?'有新配件可以買':'')),1800); vibrate([40,40,40]); }
 }
 function checkTreasures(){
@@ -827,6 +945,7 @@ function checkTreasures(){
     const st=SET_BY_ID[t.tr.id];
     if(st&&!S.setDone[st.id]&&st.ids.every(i=>S.found[i]>0)){ S.setDone[st.id]=Date.now(); addScore(SET_BONUS); msg+='\n集滿「'+st.n+'」！額外 +'+SET_BONUS+' 分'; }
     toast(msg);
+    onTreasureTalk(t);
     vibrate(60);
     refreshTreasures(); updateHud();
   }
@@ -864,6 +983,7 @@ function checkGoal(){
     const y=new Date(); y.setDate(y.getDate()-1);
     S.streak=(S.lastGoal===dayStr(y))?(S.streak||0)+1:1;
     S.lastGoal=dayStr(new Date());
+    say(pickL(TK.goal),true);
     toast('今日目標達成！連續 '+S.streak+' 天'); vibrate([60,40,60,40,120]);
   }
 }
@@ -941,8 +1061,9 @@ function renderLulu(){
   let h='<div class="lv"><div class="big">Lv.'+lv+'</div><div class="xp">經驗 '+Math.floor(S.exp)+' / '+need+'<div class="xpb"><i style="width:'+Math.min(100,S.exp/need*100)+'%"></i></div></div></div>'
     +meter('bowl','肚子',S.hunger,'#F2A33A')+meter('heart','心情',S.mood,'#EE8574')
     +'<div class="mult'+(on?' on':'')+'">'+(on?'吃飽玩開心：撿寶物分數 ×1.5':'肚子或心情低於 40：分數倍率 ×1（餵牠、陪牠玩就會恢復）')+'</div>';
-  h+='<div class="seg" style="margin-top:10px"><button data-act="sub" data-id="bag" class="'+(luluSub==='bag'?'on':'')+'">背包</button><button data-act="sub" data-id="shop" class="'+(luluSub==='shop'?'on':'')+'">配件商店</button></div>';
-  if(luluSub==='bag'){
+  h+='<div class="seg" style="margin-top:10px"><button data-act="sub" data-id="bag" class="'+(luluSub==='bag'?'on':'')+'">背包</button><button data-act="sub" data-id="shop" class="'+(luluSub==='shop'?'on':'')+'">配件商店</button><button data-act="sub" data-id="chat" class="'+(luluSub==='chat'?'on':'')+'">聊天</button></div>';
+  if(luluSub==='chat'){ h+=renderChat(); }
+  else if(luluSub==='bag'){
   // 背包
   const ids=ALL_ITEMS.filter(x=>(S.items[x.id]||0)>0);
   h+='<div class="sech"><span>'+ui('bag',22,'#C9604F')+' 背包</span><span class="small">點一下選東西</span></div>';
@@ -982,6 +1103,7 @@ function useItem(id){
   else { S.mood=Math.min(100,S.mood+TOY_MOOD[x.r]); playToy({svg:x.s}); }
   questAdd(x.k==='food'?'feed':'play',1);
   addExp(EXP_GAIN[x.r]);
+  say(x.k==='food'?(TK.eatBy[x.id]&&Math.random()<.6?TK.eatBy[x.id]:pickL(TK.eat)):pickL(TK.play),true);
   toast(x.k==='food'?'LuLu 吃了'+x.n+'，好滿足':'LuLu 玩'+x.n+'玩得好開心');
   vibrate(30); save(true); updateHud(); renderLulu();
 }
@@ -990,6 +1112,7 @@ $('lulu').addEventListener('click',e=>{
   const id=el.dataset.id, act=el.dataset.act;
   if(act==='bag'){ bagSel=(bagSel===id)?null:id; renderLulu(); }
   else if(act==='use') useItem(id);
+  else if(act==='chat'){ const lab=(CHAT_BTNS.find(b=>b[0]===id)||[0,''])[1]; chatLog.push({who:'u',t:lab}); say(chatReply(id),true); renderLulu(); const bx=$('chatBox'); if(bx) bx.scrollTop=bx.scrollHeight; }
   else if(act==='sub'){ luluSub=id; tryOn=null; renderLulu(); }
   else if(act==='cat'){ shopCat=id; renderLulu(); }
   else if(act==='try'){ if(e.target.closest('button')) { /* handled by button act below */ } else { const a=ACC_BY[id]; tryOn=tryOn||{}; if(tryOn[a.slot]===id) delete tryOn[a.slot]; else tryOn[a.slot]=id; renderLulu(); } }
@@ -998,9 +1121,9 @@ $('lulu').addEventListener('click',e=>{
     const a=ACC_BY[id]; if(!a||S.owned[id]) return;
     if((S.lvl||1)<a.lv){ toast('LuLu 要 Lv.'+a.lv+' 才能戴'); return; }
     if((S.score||0)<a.p){ toast('分數不夠，還差 '+(a.p-(S.score||0))+' 分'); return; }
-    S.score-=a.p; S.owned[id]=1; S.wear[a.slot]=id; tryOn=null; save(true); refreshIcons(); updateHud(); renderLulu(); toast('買了'+a.n+'，已經幫牠戴上');
+    S.score-=a.p; S.owned[id]=1; S.wear[a.slot]=id; tryOn=null; save(true); refreshIcons(); updateHud(); renderLulu(); toast('買了'+a.n+'，已經幫牠戴上'); say(pickL(TK.wear),true);
   }
-  else if(act==='wear'){ const a=ACC_BY[id]; S.wear[a.slot]=(S.wear[a.slot]===id)?null:id; tryOn=null; save(true); refreshIcons(); renderLulu(); }
+  else if(act==='wear'){ const a=ACC_BY[id]; S.wear[a.slot]=(S.wear[a.slot]===id)?null:id; tryOn=null; save(true); refreshIcons(); if(S.wear[a.slot]) say(pickL(TK.wear),true); renderLulu(); }
 });
 let curTab='diary', collSub='coll';
 function showTab(t){
@@ -1036,7 +1159,7 @@ function startWalk(){
   walking=true;
   sess={t0:Date.now(),steps:0,dist:0,pts:0,items:[],route:[[real.lat,real.lng]],poly:L.polyline([[real.lat,real.lng]],{color:'#EE8574',weight:7,opacity:.9,lineCap:'round'}).addTo(map)};
   lastT=Date.now(); $('sess').classList.remove('hidden'); updSess(); clearInterval(sessTimer); sessTimer=setInterval(updSess,1000);
-  keepAwake(); walkBtn(); updateHud(); refreshTreasures(); toast('出發！走到公共場所撿寶物吧');
+  keepAwake(); walkBtn(); updateHud(); refreshTreasures(); toast('出發！走到公共場所撿寶物吧'); nextAmb=Date.now()+60000; say(pickL(TK.start[tod()]),true);
 }
 function dropSess(){
   clearInterval(sessTimer); walking=false;
@@ -1048,6 +1171,7 @@ function endWalk(){
   const s0=sess, dur=Date.now()-s0.t0;
   if(s0.steps<20&&s0.dist<20){ dropSess(); toast('這趟太短，沒有記錄'); return; }
   S.nWalks++; S.bestWalk=Math.max(S.bestWalk||0,Math.floor(s0.steps));
+  say(pickL(TK.end[s0.dist<500?'short':s0.dist<3000?'mid':'long']),true);
   const rec={t:s0.t0,dur,steps:Math.floor(s0.steps),dist:s0.dist,pts:s0.pts,n:s0.items.length};
   S.walks=[rec].concat(S.walks||[]).slice(0,20); save(true);
   const route=s0.route.slice(); dropSess();
@@ -1223,7 +1347,8 @@ function frame(now){
   if(mv) pStill=0; else pStill+=dt;
   setLook(playerO,pStill>1.5?'lie':'cape',false);
   if(mv!==lastMoving){ lastMoving=mv; const el=playerMk.getElement&&playerMk.getElement(); if(el) el.classList.toggle('moving',mv); }
-  nearTick-=dt; if(nearTick<=0){ nearTick=1; updateNear(); if(real) ensurePois(); }
+  if(walking&&pStill>25&&Date.now()-lastSay>40000){ say(pickL(TK.idle)); }
+  nearTick-=dt; if(nearTick<=0){ nearTick=1; ambientTalk(); updateNear(); if(real) ensurePois(); }
   if(playMk){ if(Date.now()>playUntil){ playMk.remove(); playMk=null; } else playMk.setLatLng([player.lat+mLat(.8),player.lng+mLng(3.2,player.lat)]); }
   // 地圖跟隨
   if(follow){ centerT-=dt; if(mv||centerT<=0){ map.panTo([player.lat,player.lng],{animate:false}); centerT=.5; } }
@@ -1281,7 +1406,7 @@ $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); 
 addEventListener('pagehide',()=>save(true));
 walkBtn(); updateHud();
 
-window.__walk={ ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ say, chatReply, TK, ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
