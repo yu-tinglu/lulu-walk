@@ -275,6 +275,11 @@
   #status{bottom:calc(98px + env(safe-area-inset-bottom))}
   .photoBtn{bottom:calc(104px + env(safe-area-inset-bottom))}
   .compassBtn{bottom:calc(170px + env(safe-area-inset-bottom))}
+  .lockBtn{position:fixed;z-index:500;right:14px;bottom:calc(236px + env(safe-area-inset-bottom));width:56px;height:56px}
+  .zoomBox{position:fixed;z-index:500;left:14px;bottom:calc(150px + env(safe-area-inset-bottom));display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 3px 8px rgba(0,0,0,.25);background:#fff}
+  .zoomBox button{width:50px;height:48px;border:0;background:#fff;color:#1B8196;font-size:26px;font-weight:800;font-family:inherit;cursor:pointer}
+  .zoomBox button+button{border-top:1px solid #E4F1F6}
+  .zoomBox button:active{background:#E4F1F6}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -328,6 +333,8 @@
 </div>
 <div id="attr"></div>
 <div id="status">我還在找你…</div>
+<button class="round lockBtn" id="bLock" aria-label="鎖定畫面"></button>
+<div class="zoomBox"><button id="bZin" aria-label="放大">＋</button><button id="bZout" aria-label="縮小">－</button></div>
 <button class="round compassBtn" id="bCompass" aria-label="羅盤"></button>
 <button class="round photoBtn" id="bPhoto" aria-label="跟我拍照"><span data-ui="camera" data-size="32" data-color="#1B8196"></span></button>
 <div id="dock">
@@ -455,6 +462,8 @@ const UI={
   camera:'<path d="M4 7h4l1.500-2h5L16 7h4a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.800" fill="#fff"/>',
   save:'<path d="M12 3v12m0 0l-5-5m5 5l5-5" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/>',
   load:'<path d="M12 15V3m0 0L7 8m5-5l5 5" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2.500"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/>',
+  unlock:'<rect x="5" y="11" width="14" height="10" rx="2.500"/><path d="M8 11V8a4 4 0 0 1 7.500-2" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/>',
   zzz:'<path d="M4 4h7L4 13h7M13 12h6l-6 8h6" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linejoin="round" stroke-linecap="round"/>'
 };
 function ui(name,size,color){
@@ -750,6 +759,21 @@ function compassBtn(){
   $('bCompass').innerHTML='<svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="17" fill="'+(on?'#2BA7C0':'#fff')+'" stroke="#2BA7C0" stroke-width="2.500"/><path d="M20 6l6 14H14z" fill="#E85D4E"/><path d="M20 34l-6-14h12z" fill="'+(on?'#fff':'#9aa7ad')+'"/><circle cx="20" cy="20" r="2.200" fill="#fff" stroke="#6A4640" stroke-width="1"/></svg>';
   rotApplied=null;
 }
+function applyLock(){
+  const lk=S.lockView!==false;
+  ['dragging','touchZoom','doubleClickZoom','scrollWheelZoom','boxZoom','keyboard'].forEach(k=>{ try{ map[k][lk?'disable':'enable'](); }catch(e){} });
+  if(lk) follow=true;
+  $('bLock').innerHTML=ui(lk?'lock':'unlock',30,lk?'#fff':'#1B8196'); $('bLock').style.background=lk?'#2BA7C0':'#fff'; $('bLock').style.color=lk?'#fff':'#1B8196';
+  rotApplied=null;
+}
+$('bLock').addEventListener('click',()=>{
+  S.lockView=(S.lockView===false); save(true); applyLock();
+  toast(S.lockView!==false?'畫面鎖定：地圖固定跟著我，不會被手指拖走':'畫面解鎖：可以自己拖動、縮放地圖');
+  if(S.lockView!==false&&player) map.panTo([player.lat,player.lng],{animate:false});
+});
+const zoomBy=d=>{ try{ const z=Math.max(14,Math.min(19,map.getZoom()+d)); map.setZoom(z); }catch(e){} };
+$('bZin').addEventListener('click',()=>zoomBy(1));
+$('bZout').addEventListener('click',()=>zoomBy(-1));
 function fitMap(){
   const wr=$('mapWrap'), w=wr.clientWidth||innerWidth, h=wr.clientHeight||innerHeight, sz=Math.ceil(Math.hypot(w,h)*1.04), m=$('map');
   m.style.width=sz+'px'; m.style.height=sz+'px'; m.style.left=((w-sz)/2)+'px'; m.style.top=((h-sz)/2)+'px';
@@ -767,7 +791,7 @@ $('bCompass').addEventListener('click',async()=>{
 $('bCalM').addEventListener('click',()=>{ S.hOff=(S.hOff||0)-5; save(true); calTxt(); });
 $('bCalP').addEventListener('click',()=>{ S.hOff=(S.hOff||0)+5; save(true); calTxt(); });
 $('bCalR').addEventListener('click',()=>{ S.hOff=0; save(true); calTxt(); toast('羅盤校正歸零了'); });
-addEventListener('resize',fitMap); fitMap(); compassBtn(); calTxt();
+addEventListener('resize',fitMap); fitMap(); compassBtn(); calTxt(); applyLock();
 /* ---------- 花 ---------- */
 function addFlowerMk(lat,lng){
   const mk=L.marker([lat,lng],{icon:L.divIcon({className:'flw',html:flowerSvg(FLOWER_COLORS[Math.abs(Math.floor(lat*1e5+lng*1e5))%FLOWER_COLORS.length],26),iconSize:[26,26],iconAnchor:[13,13]}),interactive:false,zIndexOffset:-100}).addTo(map);
