@@ -199,6 +199,12 @@
   .seg button.on{background:#2BA7C0;color:#fff}
   .shop.try{outline:3px solid #2BA7C0}
   .shop{cursor:pointer}
+  .achr{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px dashed #F0E2DC}
+  .achr .aic{flex:none;width:40px;height:40px;border-radius:50%;background:#F4F0EE;display:flex;align-items:center;justify-content:center}
+  .achr.ok .aic{background:#FFF1C9}
+  .achr .anm{flex:1;font-size:15px;line-height:1.4}.achr .anm small{display:block;color:#9A7A72;font-size:12px}
+  .achr .apt{font-size:13px;font-weight:800;color:#1B8196;white-space:nowrap}
+  .achr.ok .apt{color:#6bb36b}.achr:not(.ok) .anm b{opacity:.75}
   .hist{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dashed #F0CFC6}
   #summary .card{padding:20px}
   #sumImg{width:auto;max-width:100%;max-height:50vh;border-radius:16px;display:block;margin:0 auto 8px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -494,12 +500,12 @@ const POSES={"cape": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADcCAYA
 
 /* ---------- 存檔 ---------- */
 const KEY='luluwalk.v1';
-let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:{},setDone:{},walks:[],q:null};
+let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:{},setDone:{},walks:[],q:null,ach:{},fed:0,played:0,nWalks:0,qDays:0,bestWalk:0};
 try{ const j=JSON.parse(localStorage.getItem(KEY)||'null'); if(j) S=Object.assign(S,j); }catch(e){}
 const todayKey=()=>{ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
 if(!S.found||!Object.keys(S.found).length){ S.found=Object.assign({},S.items||{}); }
 if(!S.earned) S.earned=S.score||0;
-['owned','setDone'].forEach(k=>{ if(!S[k]) S[k]={}; }); if(!S.walks) S.walks=[];
+['owned','setDone'].forEach(k=>{ if(!S[k]) S[k]={}; }); if(!S.walks) S.walks=[]; if(!S.ach) S.ach={};
 if(typeof S.wear==='string') S.wear={head:S.wear}; if(!S.wear||typeof S.wear!=='object') S.wear={};
 let walking=false, sess=null, sessTimer=0;
 if (S.dayKey!==todayKey()){ S.dayKey=todayKey(); S.day=0; }
@@ -733,9 +739,66 @@ function questAdd(t,n){
     q.got=Math.min(q.need,q.got+n);
     if(q.got>=q.need){ q.done=true; addScore(q.pts); msg.push('任務完成：'+questText(q)+'　+'+q.pts+' 分'); }
   });
-  if(!S.q.bonus&&S.q.list.every(q=>q.done)){ S.q.bonus=true; addScore(100); msg.push('今日任務全部完成！額外 +100 分'); }
+  if(!S.q.bonus&&S.q.list.every(q=>q.done)){ S.q.bonus=true; S.qDays++; addScore(100); msg.push('今日任務全部完成！額外 +100 分'); }
   if(msg.length){ setTimeout(()=>{ toast(msg.join('\n')); vibrate([40,40,80]); updateHud(); },1500); }
   updateHud();
+}
+/* ---------- 成就 ---------- */
+const nFound=()=>ALL_ITEMS.filter(x=>(S.found||{})[x.id]>0).length;
+const ACH=[
+ {n:'初次散步',d:'完成 1 趟散步',need:1,v:()=>S.nWalks,pts:30},
+ {n:'散步達人',d:'完成 10 趟散步',need:10,v:()=>S.nWalks,pts:100},
+ {n:'散步成癮',d:'完成 30 趟散步',need:30,v:()=>S.nWalks,pts:300},
+ {n:'一萬步',d:'累計走 10,000 步',need:1e4,v:()=>S.total,pts:60},
+ {n:'五萬步',d:'累計走 50,000 步',need:5e4,v:()=>S.total,pts:200},
+ {n:'十萬步',d:'累計走 100,000 步',need:1e5,v:()=>S.total,pts:400},
+ {n:'五十萬步',d:'累計走 500,000 步',need:5e5,v:()=>S.total,pts:1000},
+ {n:'十公里',d:'累計走 10 公里',need:1e4,v:()=>S.dist||0,pts:80,km:1},
+ {n:'馬拉松',d:'累計走 42 公里',need:42e3,v:()=>S.dist||0,pts:300,km:1},
+ {n:'長征',d:'單趟散步走 5,000 步',need:5000,v:()=>S.bestWalk,pts:150},
+ {n:'三天不斷',d:'連續 3 天達成步數目標',need:3,v:()=>curStreak(),pts:100},
+ {n:'一週不斷',d:'連續 7 天達成步數目標',need:7,v:()=>curStreak(),pts:300},
+ {n:'月月不斷',d:'連續 30 天達成步數目標',need:30,v:()=>curStreak(),pts:1000},
+ {n:'獎章收藏家',d:'拿到 10 枚獎章',need:10,v:()=>S.miles||0,pts:100},
+ {n:'獎章大王',d:'拿到 50 枚獎章',need:50,v:()=>S.miles||0,pts:400},
+ {n:'探險新手',d:'造訪 5 個景點',need:5,v:()=>Object.keys(S.seen||{}).length,pts:60},
+ {n:'景點通',d:'造訪 20 個景點',need:20,v:()=>Object.keys(S.seen||{}).length,pts:200},
+ {n:'在地達人',d:'造訪 50 個景點',need:50,v:()=>Object.keys(S.seen||{}).length,pts:500},
+ {n:'撿寶新手',d:'圖鑑收集 20 種',need:20,v:nFound,pts:80},
+ {n:'圖鑑達人',d:'圖鑑收集 50 種',need:50,v:nFound,pts:250},
+ {n:'圖鑑大師',d:'圖鑑收集全部 '+ALL_ITEMS.length+' 種',need:ALL_ITEMS.length,v:nFound,pts:1500},
+ {n:'傳說獵人',d:'撿到 1 個傳說（紫框）寶物',need:1,v:()=>ALL_ITEMS.filter(x=>x.r===3&&(S.found||{})[x.id]>0).length,pts:150},
+ {n:'集滿一套',d:'集滿 1 套寶物',need:1,v:()=>Object.keys(S.setDone||{}).length,pts:100},
+ {n:'套組收藏家',d:'集滿 5 套寶物',need:5,v:()=>Object.keys(S.setDone||{}).length,pts:400},
+ {n:'套組全制霸',d:'集滿全部 '+SETS.length+' 套寶物',need:SETS.length,v:()=>Object.keys(S.setDone||{}).length,pts:1200},
+ {n:'貼心主人',d:'餵 LuLu 吃 10 次東西',need:10,v:()=>S.fed,pts:80},
+ {n:'美食家',d:'餵 LuLu 吃 50 次東西',need:50,v:()=>S.fed,pts:250},
+ {n:'玩伴',d:'陪 LuLu 玩 20 次玩具',need:20,v:()=>S.played,pts:150},
+ {n:'LuLu 長大了',d:'LuLu 升到 Lv.5',need:5,v:()=>S.lvl||1,pts:150},
+ {n:'LuLu 大明星',d:'LuLu 升到 Lv.10',need:10,v:()=>S.lvl||1,pts:500},
+ {n:'時尚新手',d:'買下第 1 件配件',need:1,v:()=>Object.keys(S.owned||{}).length,pts:50},
+ {n:'衣櫃滿滿',d:'擁有 7 件配件',need:7,v:()=>Object.keys(S.owned||{}).length,pts:300},
+ {n:'時尚大師',d:'擁有全部 '+ACCS.length+' 件配件',need:ACCS.length,v:()=>Object.keys(S.owned||{}).length,pts:800},
+ {n:'任務完成者',d:'一天內完成全部 3 個任務',need:1,v:()=>S.qDays,pts:60},
+ {n:'任務常客',d:'累計 7 天完成全部任務',need:7,v:()=>S.qDays,pts:300}
+];
+ACH.forEach((a,i)=>a.id='a'+i);
+let achBusy=false;
+function checkAch(){
+  if(achBusy) return; achBusy=true;
+  const msg=[];
+  ACH.forEach(a=>{ if(!S.ach[a.id]&&a.v()>=a.need){ S.ach[a.id]=Date.now(); addScore(a.pts); msg.push('成就解鎖：'+a.n+'　+'+a.pts+' 分'); } });
+  achBusy=false;
+  if(msg.length){ setTimeout(()=>{ toast(msg.slice(0,3).join('\n')+(msg.length>3?'\n…還有 '+(msg.length-3)+' 個':'')); vibrate([60,40,60,40,120]); },3200); }
+}
+function achHtml(){
+  const done=ACH.filter(a=>S.ach[a.id]).length;
+  const fmt=(a,v)=>a.km?(v/1000).toFixed(1).replace(/\.0$/,'')+' 公里':Math.floor(v).toLocaleString();
+  return '<div class="coll-h" style="font-size:17px"><span>成就</span><span>'+done+' / '+ACH.length+'</span></div>'+
+    ACH.slice().sort((a,b)=>(S.ach[b.id]?1:0)-(S.ach[a.id]?1:0)||0).map(a=>{
+      const ok=S.ach[a.id], v=Math.min(a.need,a.v());
+      return '<div class="achr'+(ok?' ok':'')+'"><div class="aic">'+ui('medal',30,ok?'#f4a100':'#c9c2bd')+'</div><div class="anm"><b>'+a.n+'</b><small>'+a.d+'</small>'+(ok?'':'<div class="qb"><i style="width:'+(v/a.need*100)+'%"></i></div><small>'+fmt(a,v)+' / '+fmt(a,a.need)+'</small>')+'</div><div class="apt">'+(ok?'已達成':'+'+a.pts+' 分')+'</div></div>';
+    }).join('');
 }
 function bonusOn(){ return S.hunger>=40&&S.mood>=40; }
 function addScore(n){ S.score=(S.score||0)+n; S.earned=(S.earned||0)+n; if(sess) sess.pts+=n; }
@@ -782,7 +845,7 @@ function updateHud(){
   $('vPigs').textContent=S.miles||0;
   $('vStreak').textContent=curStreak();
   $('vScore').textContent=(S.score||0).toLocaleString();
-  $('vQ').textContent=questDone()+'/3'; $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn());
+  checkAch(); $('vQ').textContent=questDone()+'/3'; $('vLv').textContent=S.lvl||1; $('vBonus').classList.toggle('hidden',!bonusOn());
   const left=STEPS_PER_PIG-S.stepBank;
   $('progTxt').textContent=walking?('再走 '+Math.ceil(left)+' 步，拿到下一枚獎章'):'按下面的「開始散步」才會計步、撿寶物';
   $('fill').style.width=(S.stepBank/STEPS_PER_PIG*100)+'%';
@@ -914,6 +977,7 @@ function renderLulu(){
 function useItem(id){
   const x=ITEM_BY_ID[id]; if(!x||!(S.items[id]>0)) return;
   S.items[id]--; if(!S.items[id]) { delete S.items[id]; }
+  if(x.k==='food') S.fed++; else S.played++;
   if(x.k==='food'){ S.hunger=Math.min(100,S.hunger+FOOD_HUNGER[x.r]); S.mood=Math.min(100,S.mood+FOOD_MOOD[x.r]); }
   else { S.mood=Math.min(100,S.mood+TOY_MOOD[x.r]); playToy({svg:x.s}); }
   questAdd(x.k==='food'?'feed':'play',1);
@@ -938,7 +1002,7 @@ $('lulu').addEventListener('click',e=>{
   }
   else if(act==='wear'){ const a=ACC_BY[id]; S.wear[a.slot]=(S.wear[a.slot]===id)?null:id; tryOn=null; save(true); refreshIcons(); renderLulu(); }
 });
-let curTab='diary';
+let curTab='diary', collSub='coll';
 function showTab(t){
   curTab=t;
   [['diary','pDiary'],['lulu','pLulu'],['coll','pColl'],['set','pSet']].forEach(p=>$(p[1]).classList.toggle('hidden',p[0]!==t));
@@ -946,11 +1010,15 @@ function showTab(t){
   if(t!=='lulu') tryOn=null;
   if(t==='diary') renderDiary();
   else if(t==='lulu') renderLulu();
-  else if(t==='coll') $('collection').innerHTML='<div class="coll-h" style="font-size:17px"><span>收集進度</span><span>'+ALL_ITEMS.filter(x=>(S.found||{})[x.id]>0).length+' / '+ALL_ITEMS.length+'　集滿 '+SETS.filter(x=>S.setDone&&S.setDone[x.id]).length+' / '+SETS.length+' 套</span></div>'+SETS.map(setHtml).join('')+'<div class="small" style="text-align:center">點圖示看名稱；邊框顏色：灰＝普通、綠＝少見、藍＝稀有、紫＝傳說</div>';
+  else if(t==='coll'){
+    const seg='<div class="seg"><button data-sub="coll" class="'+(collSub==='coll'?'on':'')+'">圖鑑</button><button data-sub="ach" class="'+(collSub==='ach'?'on':'')+'">成就 '+ACH.filter(x=>S.ach[x.id]).length+'/'+ACH.length+'</button></div>';
+    $('collection').innerHTML=seg+(collSub==='ach'?achHtml():COLLHTML());
+  }
   $('sheet').querySelector('.sheet-card').scrollTop=0;
 }
+function COLLHTML(){ return '<div class="coll-h" style="font-size:17px"><span>收集進度</span><span>'+ALL_ITEMS.filter(x=>(S.found||{})[x.id]>0).length+' / '+ALL_ITEMS.length+'　集滿 '+SETS.filter(x=>S.setDone&&S.setDone[x.id]).length+' / '+SETS.length+' 套</span></div>'+SETS.map(setHtml).join('')+'<div class="small" style="text-align:center">點圖示看名稱；邊框顏色：灰＝普通、綠＝少見、藍＝稀有、紫＝傳說</div>'; }
 $('tabs').addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.tab'); if(b) showTab(b.dataset.tab); });
-$('collection').addEventListener('click',e=>{ const el=e.target.closest&&e.target.closest('.ci'); if(el) toast(el.dataset.name); });
+$('collection').addEventListener('click',e=>{ const sb=e.target.closest&&e.target.closest('[data-sub]'); if(sb){ collSub=sb.dataset.sub; showTab('coll'); return; } const el=e.target.closest&&e.target.closest('.ci'); if(el) toast(el.dataset.name); });
 function openSheet(t){ $('sheet').classList.remove('hidden'); showTab(typeof t==='string'?t:curTab); }
 function closeSheet(){ $('sheet').classList.add('hidden'); }
 
@@ -979,6 +1047,7 @@ function endWalk(){
   if(!walking) return;
   const s0=sess, dur=Date.now()-s0.t0;
   if(s0.steps<20&&s0.dist<20){ dropSess(); toast('這趟太短，沒有記錄'); return; }
+  S.nWalks++; S.bestWalk=Math.max(S.bestWalk||0,Math.floor(s0.steps));
   const rec={t:s0.t0,dur,steps:Math.floor(s0.steps),dist:s0.dist,pts:s0.pts,n:s0.items.length};
   S.walks=[rec].concat(S.walks||[]).slice(0,20); save(true);
   const route=s0.route.slice(); dropSess();
@@ -1212,7 +1281,7 @@ $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); 
 addEventListener('pagehide',()=>save(true));
 walkBtn(); updateHud();
 
-window.__walk={ accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
