@@ -454,7 +454,7 @@ const POSES={"cape": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADcCAYA
 
 /* ---------- 存檔 ---------- */
 const KEY='luluwalk.v1';
-let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:null,setDone:{},walks:[]};
+let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:null,setDone:{},walks:[],q:null};
 try{ const j=JSON.parse(localStorage.getItem(KEY)||'null'); if(j) S=Object.assign(S,j); }catch(e){}
 const todayKey=()=>{ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
 if(!S.found||!Object.keys(S.found).length){ S.found=Object.assign({},S.items||{}); }
@@ -662,6 +662,33 @@ function refreshTreasures(){
   updateNear();
 }
 function poiTick(){ ensurePois(); if(Date.now()-lastRef>5000){ lastRef=Date.now(); refreshTreasures(); } }
+/* ---------- 每日任務 ---------- */
+const QPOOL=[
+ {t:'steps',n:'今天走 {n} 步',need:[1500,2500,4000],pts:[60,100,160]},
+ {t:'collect',n:'撿到 {n} 個寶物',need:[2,3,5],pts:[50,80,130]},
+ {t:'place',n:'造訪 {n} 個新景點',need:[1,2,3],pts:[60,100,150]},
+ {t:'feed',n:'餵 LuLu 吃 {n} 次東西',need:[1,2,3],pts:[30,50,80]},
+ {t:'play',n:'陪 LuLu 玩 {n} 次玩具',need:[1,2,2],pts:[30,50,60]}
+];
+function ensureQuests(){
+  if(S.q&&S.q.key===S.dayKey) return;
+  let seed=0; for(const ch of S.dayKey) seed=(seed*31+ch.charCodeAt(0))>>>0;
+  const rnd=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+  const pool=QPOOL.slice(), list=[];
+  while(list.length<3){ const d=pool.splice(Math.floor(rnd()*pool.length),1)[0]; const lv=Math.floor(rnd()*3); list.push({t:d.t,need:d.need[lv],pts:d.pts[lv],got:0,done:false}); }
+  S.q={key:S.dayKey,list,bonus:false};
+}
+function questText(q){ return QPOOL.find(x=>x.t===q.t).n.replace('{n}',q.need.toLocaleString()); }
+function questAdd(t,n){
+  ensureQuests(); let msg=[];
+  S.q.list.forEach(q=>{
+    if(q.t!==t||q.done) return;
+    q.got=Math.min(q.need,q.got+n);
+    if(q.got>=q.need){ q.done=true; addScore(q.pts); msg.push('任務完成：'+questText(q)+'　+'+q.pts+' 分'); }
+  });
+  if(!S.q.bonus&&S.q.list.every(q=>q.done)){ S.q.bonus=true; addScore(100); msg.push('今日任務全部完成！額外 +100 分'); }
+  if(msg.length){ setTimeout(()=>{ toast(msg.join('\n')); vibrate([40,40,80]); updateHud(); },1500); }
+}
 function bonusOn(){ return S.hunger>=40&&S.mood>=40; }
 function addScore(n){ S.score=(S.score||0)+n; S.earned=(S.earned||0)+n; if(sess) sess.pts+=n; }
 function expNeed(l){ return 40+30*(l-1); }
@@ -684,6 +711,7 @@ function checkTreasures(){
     S.recent=(S.recent||[]).filter(n=>n!==t.poi.name); S.recent.unshift(t.poi.name); S.recent=S.recent.slice(0,8);
     addScore(pts); S.coll++; S.items[t.tr.id]=(S.items[t.tr.id]||0)+1; S.found[t.tr.id]=(S.found[t.tr.id]||0)+1;
     if(sess) sess.items.push(t.tr.id);
+    questAdd('collect',1); if(first) questAdd('place',1);
     let msg='在「'+t.poi.name+'」撿到'+t.tr.name+'（'+RARITY[t.tr.rar].n+'）　+'+pts+' 分'+(mul>1?'（加成 ×1.5）':'')+(first?'（首次造訪 +20）':'');
     const st=SET_BY_ID[t.tr.id];
     if(st&&!S.setDone[st.id]&&st.ids.every(i=>S.found[i]>0)){ S.setDone[st.id]=Date.now(); addScore(SET_BONUS); msg+='\n集滿「'+st.n+'」！額外 +'+SET_BONUS+' 分'; }
@@ -736,6 +764,7 @@ function walked(d,lat,lng){
     const was=bonusOn(); S.hunger=Math.max(0,S.hunger-whole/60); S.mood=Math.max(0,S.mood-whole/80);
     if(was&&!bonusOn()) toast('LuLu 有點'+(S.hunger<40?'餓':'無聊')+'了，到 LuLu 頁面餵牠或陪牠玩，分數才會 ×1.5');
     if(sess) sess.steps+=whole;
+    questAdd('steps',whole);
   }
   if(sess){ sess.dist+=d; const lr=sess.route[sess.route.length-1]; if(hav({lat:lr[0],lng:lr[1]},{lat,lng})>3){ sess.route.push([lat,lng]); sess.poly.addLatLng([lat,lng]); } }
   S.flowDist+=d;
@@ -782,7 +811,9 @@ const fmtDur=ms=>{ const m=Math.floor(ms/60000); return m>=60?Math.floor(m/60)+'
 function renderDiary(){
   const c=(n,t)=>'<div class="c"><div class="n">'+n+'</div><div class="t">'+t+'</div></div>';
   const W=S.walks||[];
-  $('diary').innerHTML=
+  ensureQuests();
+  const qh='<div class="c wide" style="text-align:left;padding:8px 12px;background:#E9F4F8"><div class="t" style="margin-bottom:4px;color:#1B8196;font-weight:800">今日任務'+(S.q.bonus?'（全部完成）':'（全部完成再 +100 分）')+'</div>'+S.q.list.map(q=>'<div class="hist"><span>'+(q.done?'✓ ':'')+questText(q)+'</span><span>'+(q.done?'已領':q.got.toLocaleString()+' / '+q.need.toLocaleString()+'　+'+q.pts+' 分')+'</span></div>').join('')+'</div>';
+  $('diary').innerHTML=qh+
     c(Math.floor(S.day).toLocaleString(),'今日步數')+c(Math.floor(S.total).toLocaleString(),'累計步數')+c(((S.dist||0)/1000).toFixed(1)+' km','累計距離')+
     c(S.miles||0,ui('medal',20,'#f4a100')+' 獎章')+c((S.score||0).toLocaleString(),ui('star',20,'#f4a100')+' 可用分數')+c(curStreak()+' 天',ui('flame',20,'#ff6b35')+' 連續達標')+
     c(Object.keys(S.seen||{}).length,'造訪過的景點')+c(S.flowers.length,ui('flower',20,'#EE8574')+' 花')+c(S.coll||0,'撿過的寶物')+
@@ -828,6 +859,7 @@ function useItem(id){
   S.items[id]--; if(!S.items[id]) { delete S.items[id]; }
   if(x.k==='food'){ S.hunger=Math.min(100,S.hunger+FOOD_HUNGER[x.r]); S.mood=Math.min(100,S.mood+FOOD_MOOD[x.r]); }
   else { S.mood=Math.min(100,S.mood+TOY_MOOD[x.r]); playToy({svg:x.s}); }
+  questAdd(x.k==='food'?'feed':'play',1);
   addExp(EXP_GAIN[x.r]);
   toast(x.k==='food'?'LuLu 吃了'+x.n+'，好滿足':'LuLu 玩'+x.n+'玩得好開心');
   vibrate(30); save(true); updateHud(); renderLulu();
@@ -1117,7 +1149,7 @@ $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); 
 addEventListener('pagehide',()=>save(true));
 walkBtn(); updateHud();
 
-window.__walk={ startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
