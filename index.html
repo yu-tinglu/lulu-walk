@@ -279,6 +279,7 @@
   .photoBtn{bottom:calc(104px + env(safe-area-inset-bottom))}
   .compassBtn{bottom:calc(170px + env(safe-area-inset-bottom))}
   .lockBtn{position:fixed;z-index:500;right:14px;bottom:calc(236px + env(safe-area-inset-bottom));width:56px;height:56px}
+  .miniBtn{position:fixed;z-index:500;right:14px;bottom:calc(302px + env(safe-area-inset-bottom));width:56px;height:56px}
   .zoomBox{position:fixed;z-index:500;left:14px;bottom:calc(150px + env(safe-area-inset-bottom));display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 3px 8px rgba(0,0,0,.25);background:#fff}
   .zoomBox button{width:50px;height:48px;border:0;background:#fff;color:#1B8196;font-size:26px;font-weight:800;font-family:inherit;cursor:pointer}
   .zoomBox button+button{border-top:1px solid #E4F1F6}
@@ -342,6 +343,7 @@
 <div id="attr"></div>
 <div id="status">我還在找你…</div>
 <button class="round lockBtn" id="bLock" aria-label="鎖定畫面"></button>
+<button class="round miniBtn" id="bMini" aria-label="小視窗"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1B8196" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><rect x="12" y="11" width="7.5" height="6" rx="1.5" fill="#1B8196" stroke="none"/></svg></button>
 <div class="zoomBox"><button id="bZin" aria-label="放大">＋</button><button id="bZout" aria-label="縮小">－</button></div>
 <button class="round compassBtn" id="bCompass" aria-label="羅盤"></button>
 <button class="round photoBtn" id="bPhoto" aria-label="跟我拍照"><span data-ui="camera" data-size="32" data-color="#1B8196"></span></button>
@@ -385,7 +387,12 @@
         <button class="btn alt" id="bExport"><span data-ui="save" data-size="22"></span>匯出存檔</button>
         <label class="btn alt" for="saveFile"><span data-ui="load" data-size="22"></span>匯入存檔</label>
       </div>
-      <p class="small" style="text-align:center">進度只存在這支手機的瀏覽器裡，換手機或清除瀏覽資料前，記得先「匯出存檔」。</p>
+      <div class="grid">
+        <button class="btn alt" id="bShareSave">分享／存到檔案</button>
+        <button class="btn alt" id="bRestoreBak">還原自動備份</button>
+      </div>
+      <p class="small" style="text-align:center" id="saveTxt">我會自動幫你存檔</p>
+      <p class="small" style="text-align:center">我每 15 秒、切換畫面和關閉時都會自動存，並每 10 分鐘留一份備份。不過這些都只在這支手機的瀏覽器裡，清除瀏覽資料就會不見，所以記得偶爾「匯出存檔」或「分享／存到檔案」存到「檔案」或 iCloud。</p>
       <p class="small" style="text-align:center">模擬走路只是陪我試玩，不會記進你的紀錄喔。</p>
     </div>
     <button class="btn" id="sheetClose">關閉</button>
@@ -623,7 +630,9 @@ const POSES={"cape": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADcCAYA
 /* ---------- 存檔 ---------- */
 const KEY='luluwalk.v1';
 let S={miles:0,pigs:3,total:0,day:0,dayKey:'',coll:0,collBank:0,stepBank:0,acc:0,flowDist:0,flowers:[],skin:null,goal:3000,dist:0,streak:0,lastGoal:'',items:{},score:0,visited:{},seen:{},recent:[],found:{},exp:0,lvl:1,hunger:80,mood:80,earned:0,owned:{},wear:{},setDone:{},walks:[],q:null,ach:{},wq:null,evSeen:'',photos:0,fed:0,played:0,nWalks:0,qDays:0,bestWalk:0};
-try{ const j=JSON.parse(localStorage.getItem(KEY)||'null'); if(j) S=Object.assign(S,j); }catch(e){}
+const BAK1='luluwalk.bak1', BAK2='luluwalk.bak2', BAKT='luluwalk.bakT', EXPT='luluwalk.expT';
+function readSave(k){ try{ const j=JSON.parse(localStorage.getItem(k)||'null'); return (j&&typeof j==='object'&&('score' in j))?j:null; }catch(e){ return null; } }
+let restoredFrom=''; { let j=readSave(KEY); if(!j){ j=readSave(BAK1); if(j) restoredFrom='自動備份'; else { j=readSave(BAK2); if(j) restoredFrom='較早的自動備份'; } } if(j) S=Object.assign(S,j); }
 const todayKey=()=>{ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
 if(!S.found||!Object.keys(S.found).length){ S.found=Object.assign({},S.items||{}); }
 if(!S.earned) S.earned=S.score||0;
@@ -631,7 +640,12 @@ if(!S.earned) S.earned=S.score||0;
 if(typeof S.wear==='string') S.wear={head:S.wear}; if(!S.wear||typeof S.wear!=='object') S.wear={};
 let walking=false, sess=null, sessTimer=0;
 if (S.dayKey!==todayKey()){ S.dayKey=todayKey(); S.day=0; }
-let saveT=0; function save(force){ if(simMode) return; const n=Date.now(); if(!force&&n-saveT<2000) return; saveT=n; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+let saveT=0; function save(force){ if(simMode) return; const n=Date.now(); if(!force&&n-saveT<2000) return; saveT=n; try{ const str=JSON.stringify(S); localStorage.setItem(KEY,str); lastSaved=n;
+    const bt=+localStorage.getItem(BAKT)||0;
+    if(n-bt>10*60*1000 && (S.total||S.score)){ const o=localStorage.getItem(BAK1); if(o) localStorage.setItem(BAK2,o); localStorage.setItem(BAK1,str); localStorage.setItem(BAKT,String(n)); lastBak=n; }
+  }catch(e){} showSaved(); }
+let lastSaved=0, lastBak=+localStorage.getItem('luluwalk.bakT')||0;
+function showSaved(){ const el=document.getElementById('saveTxt'); if(!el||!lastSaved) return; const f=t=>new Date(t).toTimeString().slice(0,5); el.textContent='已自動儲存 '+f(lastSaved)+(lastBak?'　｜　備份 '+f(lastBak):''); }
 
 /* ---------- 工具 ---------- */
 const R_E=6371000, rad=x=>x*Math.PI/180;
@@ -1812,6 +1826,67 @@ $('sheetBg').addEventListener('click',closeSheet);
 $('bMap').addEventListener('click',()=>{ setTiles(tileIdx+1); toast('換成這張地圖：'+TILES[tileIdx].name); });
 $('goGps').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); startGPS(); playBgm(); });
 $('goSim').addEventListener('click',()=>{ $('welcome').classList.add('hidden'); setSim(true); playBgm(); });
+
+/* ---------- 自動儲存／備份 ---------- */
+setInterval(()=>save(true),15000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') save(true); });
+setTimeout(()=>{ showSaved(); if(restoredFrom) toast('存檔有點問題，我幫你從'+restoredFrom+'救回來了'); },1200);
+$('bRestoreBak').addEventListener('click',()=>{
+  const j=readSave(BAK1)||readSave(BAK2); if(!j){ toast('我還沒有備份耶，走一陣子就會有了'); return; }
+  if(!confirm('要還原到上一次的自動備份嗎？目前的進度會被取代喔。')) return;
+  try{ localStorage.setItem(KEY,JSON.stringify(j)); }catch(e){} location.reload();
+});
+$('bShareSave').addEventListener('click',async()=>{
+  if(simMode){ toast('現在是試玩，先關掉模擬再存喔'); return; }
+  save(true); const d=new Date(), nm='lulu-walk-save-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.json';
+  const f=new File([JSON.stringify(S)],nm,{type:'application/json'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:'LuLu 散步存檔'}); localStorage.setItem(EXPT,String(Date.now())); toast('存好囉，收好它喔'); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  dlBlob(f,nm); localStorage.setItem(EXPT,String(Date.now())); toast('存檔下載好囉，收好它喔');
+});
+try{ const now=Date.now(); const et=+localStorage.getItem(EXPT)||0; if(!et) localStorage.setItem(EXPT,String(now));
+  else if(now-et>7*86400000 && S.nWalks>0) setTimeout(()=>toast('好久沒備份囉，到設定按「分享／存到檔案」存一份吧'),4000); }catch(e){}
+
+/* ---------- 小視窗（子母畫面）---------- */
+let pipV=null, pipC=null, pipTimer=0, pipImg=null;
+function pipDraw(){
+  const c=pipC, g=c.getContext('2d'), W=c.width, H=c.height;
+  g.fillStyle='#FFF6E6'; g.fillRect(0,0,W,H);
+  g.fillStyle='#2BA7C0'; g.fillRect(0,0,W,8);
+  if(pipImg){ const sz=H-34; g.drawImage(pipImg,10,22,sz,sz*(pipImg.naturalHeight/pipImg.naturalWidth||1)); }
+  const x=H-6; g.textBaseline='alphabetic'; g.textAlign='left';
+  const ff="'PingFang TC','Noto Sans TC',sans-serif";
+  g.fillStyle='#1B8196'; g.font='800 15px '+ff; g.fillText(walking?'我們正在散步中':'我在這裡休息',x,42);
+  g.fillStyle='#3a2f2a'; g.font='800 34px '+ff; g.fillText((S.day||0).toLocaleString(),x,86);
+  g.fillStyle='#9A8C86'; g.font='600 13px '+ff; g.fillText('今天的步數 / '+(S.goal||3000).toLocaleString(),x,106);
+  g.fillStyle='#E4F1F6'; g.fillRect(x,118,W-x-14,9);
+  g.fillStyle='#E8604C'; g.fillRect(x,118,(W-x-14)*Math.min(1,(S.day||0)/(S.goal||3000)),9);
+  g.fillStyle='#3a2f2a'; g.font='700 15px '+ff;
+  g.fillText('積分 '+(S.score||0).toLocaleString()+'　Lv.'+(S.lvl||1),x,152);
+  if(walking&&sess){ g.fillStyle='#1B8196'; g.fillText(fmtClock(Date.now()-sess.t0)+'　'+(sess.dist/1000).toFixed(2)+' 公里',x,176); }
+}
+async function openMini(){
+  const v=document.createElement('video');
+  const can=!!(document.pictureInPictureEnabled||v.webkitSupportsPresentationMode);
+  if(!can||!HTMLCanvasElement.prototype.captureStream){ toast('這個瀏覽器還不能開小視窗，用 iPhone 的 Safari 或 Chrome 試試'); return; }
+  if(document.pictureInPictureElement){ try{ await document.exitPictureInPicture(); }catch(e){} return; }
+  try{
+    if(!pipC){ pipC=document.createElement('canvas'); pipC.width=360; pipC.height=200; }
+    pipImg=await loadImg(S.skin||POSES.cape); pipDraw();
+    pipV=v; v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.setAttribute('webkit-playsinline','');
+    v.style.cssText='position:fixed;left:-9999px;width:2px;height:2px'; document.body.appendChild(v);
+    v.srcObject=pipC.captureStream(5);
+    await v.play();
+    clearInterval(pipTimer); pipTimer=setInterval(pipDraw,1000);
+    if(v.requestPictureInPicture) await v.requestPictureInPicture();
+    else v.webkitSetPresentationMode('picture-in-picture');
+    toast('小視窗開好囉，可以去用別的 App 了');
+    v.addEventListener('leavepictureinpicture',()=>{ clearInterval(pipTimer); v.pause(); v.remove(); });
+    v.addEventListener('webkitpresentationmodechanged',()=>{ if(v.webkitPresentationMode!=='picture-in-picture'){ clearInterval(pipTimer); v.pause(); v.remove(); } });
+  }catch(e){ clearInterval(pipTimer); try{ v.remove(); }catch(_){} toast('小視窗開不起來，可能是這個瀏覽器不支援喔'); }
+}
+$('bMini').addEventListener('click',openMini);
 addEventListener('pagehide',()=>save(true));
 // 防止整個頁面被雙指縮放／雙擊放大（地圖本身的縮放不受影響）
 ['gesturestart','gesturechange','gestureend'].forEach(n=>document.addEventListener(n,e=>e.preventDefault(),{passive:false}));
