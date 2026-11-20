@@ -286,6 +286,13 @@
   #onb .row{display:flex;align-items:center;gap:10px;text-align:left;margin:8px 0;color:#5a4a44;font-size:15px}
   #onb .dots{display:flex;gap:6px;justify-content:center;margin:14px 0 10px} #onb .dots i{width:8px;height:8px;border-radius:50%;background:#D8E6EA} #onb .dots i.on{background:#2BA7C0}
   #onb .nx{width:100%} 
+  .offPin{display:flex;flex-direction:column;align-items:center;width:90px;margin-left:-45px;margin-top:-16px}
+  .offPin .ic{width:30px;height:30px;border-radius:50%;background:#1B8196;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+  .offPin.done .ic{background:#A9A9A9}
+  .offPin .nm{margin-top:2px;font-size:11px;font-weight:800;color:#1B6479;background:rgba(255,255,255,.85);border-radius:8px;padding:1px 6px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+  #workPop{position:fixed;z-index:2200;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86vw,320px);background:#fff;border-radius:24px;padding:20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.3);display:none;animation:wpop .4s}
+  #workPop.on{display:block} #workPop h3{margin:8px 0 4px;color:#1B8196;font-size:22px} #workPop p{margin:4px 0;color:#5a4a44;font-size:16px}
+  @keyframes wpop{from{transform:translate(-50%,-50%) scale(.6);opacity:0}}
   body.eco *{animation:none!important;transition:none!important}
   body.eco .beam{display:none}
   #dim{position:fixed;inset:0;z-index:3000;background:#000;color:#555;display:none;flex-direction:column;align-items:center;justify-content:center;font-size:20px;gap:10px;text-align:center}
@@ -450,6 +457,7 @@
 <input id="bgmFile" type="file" accept="audio/*,video/mp4" class="hidden">
 <div id="toast"></div>
 <div class="overlay hidden" id="onb"><div class="ob" id="obBox"></div></div>
+<div id="workPop"><div id="wpArt"></div><h3 id="wpT"></h3><p id="wpD"></p><button class="btn" id="wpOk" style="margin-top:10px;width:100%">收下囉</button></div>
 <div id="rain"></div>
 <div id="dim"><b id="dimN"></b><div id="dimT">點一下螢幕，我就回來</div></div>
 
@@ -1221,6 +1229,9 @@ function renderChat(){
 /* ---------- 成就 ---------- */
 const nFound=()=>ALL_ITEMS.filter(x=>(S.found||{})[x.id]>0).length;
 const ACH=[
+ {n:'上班族',d:'在公司行號趴著上班 1 天',need:1,v:()=>S.workDays||0,pts:40},
+ {n:'打工人',d:'累計上班 5 天',need:5,v:()=>S.workDays||0,pts:120},
+ {n:'社畜之王',d:'累計上班 20 天',need:20,v:()=>S.workDays||0,pts:400},
  {n:'初次散步',d:'完成 1 趟散步',need:1,v:()=>S.nWalks,pts:30},
  {n:'散步達人',d:'完成 10 趟散步',need:10,v:()=>S.nWalks,pts:100},
  {n:'散步成癮',d:'完成 30 趟散步',need:30,v:()=>S.nWalks,pts:300},
@@ -1958,7 +1969,7 @@ function keepAlive(on){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&walking&&kaEl&&kaEl.paused) keepAlive(true); });
 
 /* ====================== 第二批：更新、錯誤、省電、離線、回顧、比拼、天氣 ====================== */
-const APP_VER='2026-11-20.10';
+const APP_VER='2026-11-20.11';
 $('verTxt').textContent='版本 '+APP_VER;
 /* --- 錯誤紀錄 --- */
 const ERRK='luluwalk.err';
@@ -2090,6 +2101,69 @@ function showOnb(done){
   ov.classList.remove('hidden'); draw();
 }
 $('bOnb').addEventListener('click',()=>{ showOnb(null); });
+
+/* ====================== 上班打卡：公司行號，停下來趴著，一天一次 ====================== */
+const OFF_KEY='luluwalk.off.v1'; let offCache={}; try{ offCache=JSON.parse(localStorage.getItem(OFF_KEY)||'{}')||{}; }catch(e){}
+let offices=[], offCenter=null, offLoading=false, offRetry=0, offPins=[], offPinKey='', workAt=null;
+const SV_PC='<svg viewBox="0 0 24 24" width="%d" height="%d" fill="none" stroke="%s" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M7 10h6" /></svg>';
+const pcSvg=(z,c)=>SV_PC.replace('%d',z).replace('%d',z).replace('%s',c);
+const coinSvg='<svg viewBox="0 0 48 48" width="56" height="56"><circle cx="24" cy="24" r="20" fill="#F5C242" stroke="#D99A1E" stroke-width="3"/><circle cx="24" cy="24" r="14" fill="none" stroke="#D99A1E" stroke-width="2"/><text x="24" y="31" text-anchor="middle" font-size="20" font-weight="800" fill="#B57812" font-family="sans-serif">$</text></svg>';
+function offQuery(c){
+  const a='(around:1500,'+c.lat.toFixed(5)+','+c.lng.toFixed(5)+')';
+  return '[out:json][timeout:20];('
+   +'nwr'+a+'["office"]["name"];'
+   +'nwr'+a+'["building"~"^(office|commercial|industrial)$"]["name"];'
+   +'nwr'+a+'["landuse"~"^(industrial|commercial)$"]["name"];'
+   +'nwr'+a+'["amenity"~"^(bank|townhall|courthouse)$"]["name"];'
+   +');out center 150;';
+}
+async function ensureOffices(){
+  const c=real; if(!c||offLoading||Date.now()<offRetry) return;
+  if(offCenter&&hav(c,offCenter)<700) return;
+  offLoading=true;
+  try{
+    const key=cellKey(c.lat,c.lng), hit=offCache[key];
+    if(hit&&Date.now()-hit.t<POI_TTL) offices=hit.p;
+    else{
+      let err, got=null;
+      for(const ep of OVERPASS){ try{ got=parsePois(await postOverpass(ep,offQuery(c),16000)); break; }catch(e){ err=e; } }
+      if(!got) throw err||new Error('off');
+      offices=got.slice(0,200); offCache[key]={t:Date.now(),p:offices};
+      const ks=Object.keys(offCache); if(ks.length>6){ ks.sort((a,b)=>offCache[a].t-offCache[b].t); delete offCache[ks[0]]; }
+      try{ localStorage.setItem(OFF_KEY,JSON.stringify(offCache)); }catch(e){}
+    }
+    offCenter={lat:c.lat,lng:c.lng};
+  }catch(e){ offRetry=Date.now()+30000; }
+  offLoading=false; refreshOffPins();
+}
+function refreshOffPins(){
+  const c=real||player; if(!c) return; const done=S.workDay===todayKey();
+  const list=offices.filter(p=>hav(c,p)<=900).sort((a,b)=>hav(c,a)-hav(c,b)).slice(0,20);
+  const key=list.map(p=>p.id).join(',')+done; if(key===offPinKey) return; offPinKey=key;
+  offPins.forEach(m=>m.remove()); offPins=[];
+  list.forEach(p=>offPins.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="offPin'+(done?' done':'')+'"><div class="ic">'+pcSvg(18,'#fff')+'</div><div class="nm">'+esc(p.name)+'</div></div>',iconSize:[0,0]}),interactive:false,zIndexOffset:-30}).addTo(map)));
+}
+function workDone(p){
+  const yest=(()=>{ const d=new Date(Date.now()-86400000); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); })();
+  S.workStreak=(S.workLast===yest)?(S.workStreak||0)+1:1; S.workLast=todayKey(); S.workDay=todayKey(); S.workDays=(S.workDays||0)+1;
+  const pts=40+Math.min(S.workStreak,5)*10; addScore(pts); addExp(15);
+  $('wpArt').innerHTML='<div style="display:flex;justify-content:center;align-items:center;gap:10px">'+pcSvg(52,'#1B8196')+coinSvg+'</div>';
+  $('wpT').textContent='今天有認真上班！'; $('wpD').innerHTML='我在「'+esc(p.name)+'」陪你上班了<br><b>+'+pts+' 分</b>　連續上班 '+S.workStreak+' 天';
+  $('workPop').classList.add('on'); sfx('ach'); vibrate([60,40,60]); say('今天辛苦啦，回家我陪你吃好吃的',true);
+  save(true); refreshOffPins(); checkAch(); try{ updateHud(); }catch(e){}
+}
+$('wpOk').addEventListener('click',()=>$('workPop').classList.remove('on'));
+function workTick(){
+  const c=real; if(!c||!offices.length){ workAt=null; return; }
+  let best=null,bd=1e9; for(const p of offices){ const d=hav(c,p); if(d<bd){ bd=d; best=p; } }
+  if(!best||bd>55){ workAt=null; return; }
+  if(S.workDay===todayKey()){ if(!workAt||workAt.id!==best.id){ workAt={id:best.id,done:1}; status('今天已經上班過囉，辛苦了，明天再來'); } return; }
+  const now=Date.now();
+  if(!workAt||workAt.id!==best.id||hav(c,workAt.pos)>20) workAt={id:best.id,t0:now,pos:{lat:c.lat,lng:c.lng}};
+  const left=Math.ceil((60000-(now-workAt.t0))/1000);
+  if(left<=0){ workAt=null; workDone(best); } else status('我趴在「'+best.name+'」認真上班中…還要 '+left+' 秒，先別動喔');
+}
+setInterval(()=>{ try{ ensureOffices(); workTick(); }catch(e){} },3000);
 addEventListener('pagehide',()=>save(true));
 // 防止整個頁面被雙指縮放／雙擊放大（地圖本身的縮放不受影響）
 ['gesturestart','gesturechange','gestureend'].forEach(n=>document.addEventListener(n,e=>e.preventDefault(),{passive:false}));
@@ -2102,7 +2176,7 @@ try{ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)) navig
 document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('button,.tab,.ci')) sfx('tap'); },true);
 walkBtn(); updateHud();
 
-window.__walk={ takePhoto, showLevelUp, say, chatReply, TK, ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
+window.__walk={ setOffices:(a)=>{offices=a;}, workTick, takePhoto, showLevelUp, say, chatReply, TK, ach:()=>S.ach, checkAch, accs:()=>ACCS, quests:()=>{ensureQuests();return S.q;}, startWalk, endWalk, useItem, showTab, openSheet, drawSummary, pickTreasure, state:()=>({S,real,treasures:treasures.length,followers:followers.length}), handleMove, setSim, startGPS, treasures:()=>treasures, trail:()=>trail };
 })();
 </script>
 </body>
