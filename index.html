@@ -602,13 +602,15 @@ const SET_BONUS=300;
 const SET_BY_ID={}; SETS.forEach(st=>st.ids.forEach(i=>SET_BY_ID[i]=st));
 const ITEM_BY_ID={}; ALL_ITEMS.forEach(x=>ITEM_BY_ID[x.id]=x);
 // 地點類型 → 各套組的掉落權重
+const W_SHOP=[['twfood',30],['drink',35],['sweet',20],['picnic',15]];
 const W_TEMPLE=[['fruit',55],['twfood',30],['sweet',15]], W_MARKET=[['twfood',45],['fruit',15],['picnic',15],['world',15],['drink',10]], W_STATION=[['twfood',25],['picnic',20],['sweet',10],['travel',25],['drink',20]],
   W_OUT=[['outdoor',45],['picnic',20],['fruit',10],['drink',15],['sea',10]], W_BEACH=[['sea',60],['outdoor',20],['drink',20]], W_VIEW=[['sea',25],['travel',30],['outdoor',30],['drink',15]],
   W_IN=[['indoor',40],['sweet',30],['travel',15],['drink',15]], W_SIGHT=[['sweet',15],['indoor',15],['outdoor',15],['twfood',15],['travel',25],['world',15]];
 const POI_W={'廟宇':W_TEMPLE,'教堂':W_TEMPLE,'市場':W_MARKET,'車站':W_STATION,
   '公園':W_OUT,'遊戲場':W_OUT,'運動場':W_OUT,'噴水池':W_OUT,'海灘':W_BEACH,'燈塔':W_BEACH,'山頭':W_VIEW,'觀景點':W_VIEW,
   '博物館／美術館':W_IN,'藝文場館':W_IN,'圖書館':W_IN,'活動中心':W_IN,
-  '古蹟':W_SIGHT,'景點':W_SIGHT,'遊樂景點':W_SIGHT,'紀念館':W_SIGHT,'文創':W_SIGHT};
+  '古蹟':W_SIGHT,'景點':W_SIGHT,'遊樂景點':W_SIGHT,'紀念館':W_SIGHT,'文創':W_SIGHT,
+  '便利商店':W_SHOP,'咖啡店':W_SHOP,'公車站':W_STATION,'郵局':W_IN,'藝術品':W_SIGHT};
 function pickSet(ty){
   const w=POI_W[ty]||SETS.map(st=>[st.id,1]);
   let tot=0; w.forEach(x=>tot+=x[1]); let r=Math.random()*tot, id=w[0][0];
@@ -861,7 +863,7 @@ function plantFlower(lat,lng){
 
 /* ---------- 寶物：只會出現在附近真實的公共場所／景點 ---------- */
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const POI_KEY='luluwalk.poi.v1', POI_TTL=7*864e5;
+const POI_KEY='luluwalk.poi.v2', POI_TTL=7*864e5;
 const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
 let poiCache={}; try{ poiCache=JSON.parse(localStorage.getItem(POI_KEY)||'{}')||{}; }catch(e){}
 let pois=[], poiCenter=null, poiLoading=false, poiRetryAt=0, lastRef=0;
@@ -879,7 +881,22 @@ function poiQuery(c,R){
    +'nwr'+a+'["man_made"="lighthouse"]["name"];'
    +');out center 160;';
 }
+function poiQuery2(c,R){
+  const a='(around:'+R+','+c.lat.toFixed(5)+','+c.lng.toFixed(5)+')';
+  return '[out:json][timeout:20];('
+   +'nwr'+a+'["shop"="convenience"]["name"];'
+   +'nwr'+a+'["amenity"="cafe"]["name"];'
+   +'nwr'+a+'["amenity"="post_office"]["name"];'
+   +'nwr'+a+'["highway"="bus_stop"]["name"];'
+   +'nwr'+a+'["tourism"="artwork"]["name"];'
+   +');out center 90;';
+}
 function tagType(t){
+  if(t.shop==='convenience') return '便利商店';
+  if(t.amenity==='cafe') return '咖啡店';
+  if(t.amenity==='post_office') return '郵局';
+  if(t.highway==='bus_stop') return '公車站';
+  if(t.tourism==='artwork') return '藝術品';
   if(t.tourism==='museum'||t.tourism==='gallery') return '博物館／美術館';
   if(t.tourism==='zoo'||t.tourism==='aquarium'||t.tourism==='theme_park') return '遊樂景點';
   if(t.tourism==='viewpoint') return '觀景點';
@@ -927,7 +944,10 @@ async function loadPois(c){
   let err;
   for(const ep of OVERPASS){
     try{
-      const p=parsePois(await postOverpass(ep,poiQuery(c,2500),16000));
+      let p=parsePois(await postOverpass(ep,poiQuery(c,2500),16000));
+      if(p.filter(q=>hav(c,q)<900).length<8){   // 辦公區／工業區：公共景點太少，補上日常小站
+        try{ const p2=parsePois(await postOverpass(ep,poiQuery2(c,1200),14000)); p=p.concat(p2.filter(x=>!p.some(y=>y.name===x.name&&hav(x,y)<250))); }catch(e){}
+      }
       poiCache[key]={t:now,p:p.slice(0,220)};
       const ks=Object.keys(poiCache); if(ks.length>8){ ks.sort((a,b)=>poiCache[a].t-poiCache[b].t); delete poiCache[ks[0]]; }
       try{ localStorage.setItem(POI_KEY,JSON.stringify(poiCache)); }catch(e){}
@@ -1128,7 +1148,7 @@ const TK={
 };
 const pickL=a=>a[Math.floor(Math.random()*a.length)];
 function tod(){ const h=new Date().getHours(); return h>=5&&h<11?'morning':h<14&&h>=11?'noon':h>=14&&h<18?'afternoon':h>=18&&h<22?'evening':'night'; }
-function poiGroup(ty){ const m={'廟宇':'temple','教堂':'temple','市場':'market','車站':'station','公園':'park','遊戲場':'park','運動場':'park','噴水池':'park','海灘':'view','燈塔':'view','山頭':'view','觀景點':'view','博物館／美術館':'museum','藝文場館':'museum','圖書館':'museum','活動中心':'museum','古蹟':'sight','景點':'sight','遊樂景點':'sight','紀念館':'sight'}; return m[ty]||'def'; }
+function poiGroup(ty){ const m={'廟宇':'temple','教堂':'temple','市場':'market','車站':'station','公車站':'station','便利商店':'market','咖啡店':'market','郵局':'museum','藝術品':'sight','公園':'park','遊戲場':'park','運動場':'park','噴水池':'park','海灘':'view','燈塔':'view','山頭':'view','觀景點':'view','博物館／美術館':'museum','藝文場館':'museum','圖書館':'museum','活動中心':'museum','古蹟':'sight','景點':'sight','遊樂景點':'sight','紀念館':'sight'}; return m[ty]||'def'; }
 let chatLog=[], sayTimer=0, sayText='', sayOn=false, lastSay=0, nextAmb=Date.now()+60000;
 function setBubble(){
   const el=playerMk&&playerMk.getElement&&playerMk.getElement(); if(!el||!el.querySelector) return;
@@ -1938,7 +1958,7 @@ function keepAlive(on){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&walking&&kaEl&&kaEl.paused) keepAlive(true); });
 
 /* ====================== 第二批：更新、錯誤、省電、離線、回顧、比拼、天氣 ====================== */
-const APP_VER='2026-11-20.9';
+const APP_VER='2026-11-20.10';
 $('verTxt').textContent='版本 '+APP_VER;
 /* --- 錯誤紀錄 --- */
 const ERRK='luluwalk.err';
