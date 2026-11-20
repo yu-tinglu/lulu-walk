@@ -1558,11 +1558,18 @@ function handleMove(lat,lng,t,acc,isSim){
   else if(Date.now()-lastCarToast>8000){ lastCarToast=Date.now(); toast('好快喔，坐車的話我不算步數的'); }
 }
 let watchId=null;
+function pigFallback(msg){
+  if(real||simMode) return;
+  let l=null; try{ l=JSON.parse(localStorage.getItem('luluwalk.last')||'null'); }catch(e){}
+  const c=map.getCenter(); initPlayer(l?l.lat:c.lat,l?l.lng:c.lng);
+  if(msg) status(msg);
+}
 function startGPS(){
   simMode=false; $('bSim').classList.remove('on');
   if(!navigator.geolocation){ status('這個瀏覽器不能定位，我找不到你…'); return; }
   status('我在找你在哪裡…');
   if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  setTimeout(()=>pigFallback('我先在這裡等你，GPS 還在找…'),5000);
   // 先用上次的位置把地圖鋪好，圖磚就會在等定位時載入
   try{ const l=JSON.parse(localStorage.getItem('luluwalk.last')||'null'); if(l&&!player) map.setView([l.lat,l.lng],17,{animate:false}); }catch(e){}
   // 先要一個粗略位置（用基地台/Wi-Fi，通常不到 1 秒），精準的 GPS 再接手
@@ -1578,7 +1585,8 @@ function startGPS(){
     if(c.accuracy>70 && real) return;
     handleMove(c.latitude,c.longitude,p.timestamp||Date.now(),c.accuracy,false);
   },err=>{
-    status(err.code===1?'你還沒讓我知道你在哪，請到瀏覽器設定允許定位喔':'我找不到位置…請到空曠的地方再試試');
+    const m=err.code===1?'我還不知道你在哪，請允許定位（用 LINE 開的話，請改用 Safari 開喔）':'我找不到位置…先陪你在這裡，到空曠的地方再試試';
+    status(m); pigFallback(m);
   },{enableHighAccuracy:true,maximumAge:2000,timeout:25000});
   keepAwake();
 }
